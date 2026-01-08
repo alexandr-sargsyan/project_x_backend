@@ -16,6 +16,6 @@ class Tag extends Model
      */
     public function videoReferences(): BelongsToMany
     {
-        return $this->belongsToMany(VideoReference::class);
+        return $this->belongsToMany(VideoReference::class, 'video_reference_tag');
     }
 }

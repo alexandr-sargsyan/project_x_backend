@@ -6,6 +6,7 @@ use App\Enums\PlatformEnum;
 use App\Http\Requests\FilterVideoReferenceRequest;
 use App\Http\Requests\StoreVideoReferenceRequest;
 use App\Http\Requests\UpdateVideoReferenceRequest;
+use App\Models\Tag;
 use App\Models\VideoReference;
 use App\Services\PostgresSearchService;
 use Illuminate\Http\JsonResponse;
@@ -62,12 +63,36 @@ class VideoReferenceController extends Controller
             }
         }
 
+        // Обрабатываем теги: получаем или создаём теги по именам
+        $tagIds = [];
+        if (!empty($validated['tags']) && is_array($validated['tags'])) {
+            foreach ($validated['tags'] as $tagName) {
+                $tagName = trim($tagName);
+                if (empty($tagName)) {
+                    continue;
+                }
+
+                // Ищем существующий тег (case-insensitive)
+                $tag = Tag::whereRaw('LOWER(name) = ?', [strtolower($tagName)])->first();
+
+                if (!$tag) {
+                    // Создаём новый тег
+                    $tag = Tag::create(['name' => $tagName]);
+                }
+
+                $tagIds[] = $tag->id;
+            }
+        }
+
+        // Убираем tags из validated, так как будем привязывать по ID
+        unset($validated['tags']);
+
         // Создаём видео-референс
         $videoReference = VideoReference::create($validated);
 
-        // Привязываем теги
-        if (!empty($validated['tags'])) {
-            $videoReference->tags()->sync($validated['tags']);
+        // Привязываем теги по ID
+        if (!empty($tagIds)) {
+            $videoReference->tags()->sync($tagIds);
         }
 
         // Создаём tutorials
@@ -114,12 +139,37 @@ class VideoReferenceController extends Controller
             }
         }
 
+        // Обрабатываем теги: получаем или создаём теги по именам
+        $tagIds = null;
+        if (isset($validated['tags']) && is_array($validated['tags'])) {
+            $tagIds = [];
+            foreach ($validated['tags'] as $tagName) {
+                $tagName = trim($tagName);
+                if (empty($tagName)) {
+                    continue;
+                }
+
+                // Ищем существующий тег (case-insensitive)
+                $tag = Tag::whereRaw('LOWER(name) = ?', [strtolower($tagName)])->first();
+
+                if (!$tag) {
+                    // Создаём новый тег
+                    $tag = Tag::create(['name' => $tagName]);
+                }
+
+                $tagIds[] = $tag->id;
+            }
+        }
+
+        // Убираем tags из validated, так как будем привязывать по ID
+        unset($validated['tags']);
+
         // Обновляем видео-референс
         $videoReference->update($validated);
 
         // Обновляем теги если переданы
-        if (isset($validated['tags'])) {
-            $videoReference->tags()->sync($validated['tags']);
+        if ($tagIds !== null) {
+            $videoReference->tags()->sync($tagIds);
         }
 
         // Обновляем tutorials если переданы

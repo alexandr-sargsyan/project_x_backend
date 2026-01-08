@@ -51,14 +51,15 @@ class StoreVideoReferenceRequest extends FormRequest
             'search_profile' => ['required', 'string'],
             'search_metadata' => ['nullable', 'string'],
 
-            // Tags
-            'tags' => ['required', 'array'],
-            'tags.*' => ['exists:tags,id'],
+            // Tags (массив имен тегов)
+            'tags' => ['required', 'array', 'min:1'],
+            'tags.*' => ['required', 'string', 'max:255'],
 
             // Tutorials
             'tutorials' => ['nullable', 'array'],
-            'tutorials.*.tutorial_url' => ['nullable', 'url'],
-            'tutorials.*.label' => ['nullable', 'string'],
+            'tutorials.*' => ['required', 'array'],
+            'tutorials.*.tutorial_url' => ['nullable', 'url', 'max:2048'],
+            'tutorials.*.label' => ['nullable', 'string', 'max:255'],
             'tutorials.*.start_sec' => ['nullable', 'integer', 'min:0'],
             'tutorials.*.end_sec' => ['nullable', 'integer', 'min:0'],
         ];
@@ -70,17 +71,44 @@ class StoreVideoReferenceRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
-            if ($this->has('tutorials')) {
-                foreach ($this->input('tutorials', []) as $index => $tutorial) {
-                    $hasUrl = !empty($tutorial['tutorial_url'] ?? null);
-                    $hasSegment = !empty($tutorial['label'] ?? null) 
-                        && !empty($tutorial['start_sec'] ?? null) 
-                        && !empty($tutorial['end_sec'] ?? null);
+            $tutorials = $this->input('tutorials');
+            
+            // Пропускаем валидацию, если tutorials не передан или null
+            if ($tutorials === null || !is_array($tutorials)) {
+                return;
+            }
 
-                    if (!$hasUrl && !$hasSegment) {
+            // Валидируем каждый tutorial
+            foreach ($tutorials as $index => $tutorial) {
+                // Проверяем, что tutorial - это массив
+                if (!is_array($tutorial)) {
+                    $validator->errors()->add(
+                        "tutorials.{$index}",
+                        'Tutorial must be an array'
+                    );
+                    continue;
+                }
+
+                $hasUrl = !empty($tutorial['tutorial_url'] ?? null);
+                $hasSegment = !empty($tutorial['label'] ?? null) 
+                    && isset($tutorial['start_sec']) 
+                    && isset($tutorial['end_sec'])
+                    && $tutorial['start_sec'] !== null
+                    && $tutorial['end_sec'] !== null;
+
+                if (!$hasUrl && !$hasSegment) {
+                    $validator->errors()->add(
+                        "tutorials.{$index}",
+                        'At least one field must be filled: tutorial_url OR (label + start_sec + end_sec)'
+                    );
+                }
+
+                // Дополнительная валидация: если указан end_sec, он должен быть больше start_sec
+                if ($hasSegment && isset($tutorial['start_sec']) && isset($tutorial['end_sec'])) {
+                    if ((int)$tutorial['end_sec'] <= (int)$tutorial['start_sec']) {
                         $validator->errors()->add(
-                            "tutorials.{$index}",
-                            'Хотя бы одно из полей должно быть заполнено: tutorial_url ИЛИ (label + start_sec + end_sec)'
+                            "tutorials.{$index}.end_sec",
+                            'End time must be greater than start time'
                         );
                     }
                 }
