@@ -12,60 +12,60 @@ class CategorySeeder extends Seeder
      */
     public function run(): void
     {
-        // Корневые категории
+        // Root categories
         $advertising = Category::create([
-            'name' => 'Реклама',
+            'name' => 'Advertising',
             'slug' => 'advertising',
             'parent_id' => null,
             'order' => 1,
         ]);
 
         $documentary = Category::create([
-            'name' => 'Документалистика',
+            'name' => 'Documentary',
             'slug' => 'documentary',
             'parent_id' => null,
             'order' => 2,
         ]);
 
         $musicVideo = Category::create([
-            'name' => 'Музыкальные клипы',
+            'name' => 'Music Video',
             'slug' => 'music-video',
             'parent_id' => null,
             'order' => 3,
         ]);
 
         $shortFilm = Category::create([
-            'name' => 'Короткометражки',
+            'name' => 'Short Film',
             'slug' => 'short-film',
             'parent_id' => null,
             'order' => 4,
         ]);
 
-        // Подкатегории для рекламы
+        // Subcategories for advertising
         Category::create([
-            'name' => 'Коммерческая реклама',
+            'name' => 'Commercial Advertising',
             'slug' => 'commercial-advertising',
             'parent_id' => $advertising->id,
             'order' => 1,
         ]);
 
         Category::create([
-            'name' => 'Социальная реклама',
+            'name' => 'Social Advertising',
             'slug' => 'social-advertising',
             'parent_id' => $advertising->id,
             'order' => 2,
         ]);
 
-        // Подкатегории для документалистики
+        // Subcategories for documentary
         Category::create([
-            'name' => 'Научная документалистика',
+            'name' => 'Science Documentary',
             'slug' => 'science-documentary',
             'parent_id' => $documentary->id,
             'order' => 1,
         ]);
 
         Category::create([
-            'name' => 'Историческая документалистика',
+            'name' => 'Historical Documentary',
             'slug' => 'historical-documentary',
             'parent_id' => $documentary->id,
             'order' => 2,

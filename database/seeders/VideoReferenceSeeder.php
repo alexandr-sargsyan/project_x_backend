@@ -2,11 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Enums\PacingEnum;
-use App\Enums\PlatformEnum;
-use App\Enums\ProductionLevelEnum;
 use App\Models\Category;
-use App\Models\Tag;
 use App\Models\VideoReference;
 use Illuminate\Database\Seeder;
 
@@ -18,88 +14,51 @@ class VideoReferenceSeeder extends Seeder
     public function run(): void
     {
         $categories = Category::all();
-        $tags = Tag::all();
 
-        // Примеры видео-референсов
-        $examples = [
-            [
-                'title' => 'Cinematic Product Commercial',
-                'source_url' => 'https://www.youtube.com/watch?v=example1',
-                'preview_url' => 'https://example.com/preview1.jpg',
-                'public_summary' => 'Красивый коммерческий ролик с кинематографическим подходом',
-                'details_public' => ['color_grade' => 'warm', 'mood' => 'cinematic'],
-                'duration_sec' => 30,
-                'category_id' => $categories->where('slug', 'commercial-advertising')->first()->id,
-                'platform' => PlatformEnum::YOUTUBE->value,
-                'pacing' => PacingEnum::SLOW->value,
-                'hook_type' => 'visual',
-                'production_level' => ProductionLevelEnum::HIGH->value,
-                'has_visual_effects' => true,
-                'has_3d' => false,
-                'has_animations' => false,
-                'has_typography' => true,
-                'has_sound_design' => true,
-                'search_profile' => 'Кинематографический коммерческий ролик с теплой цветокоррекцией, медленным темпом, типографикой и саунд-дизайном',
-                'search_metadata' => 'cinematic commercial product warm color grade typography sound design',
-            ],
-            [
-                'title' => 'Fast-Paced Social Media Ad',
-                'source_url' => 'https://www.instagram.com/p/example2',
-                'preview_url' => 'https://example.com/preview2.jpg',
-                'public_summary' => 'Динамичная реклама для социальных сетей',
-                'details_public' => ['format' => 'vertical', 'style' => 'trendy'],
-                'duration_sec' => 15,
-                'category_id' => $categories->where('slug', 'social-advertising')->first()->id,
-                'platform' => PlatformEnum::INSTAGRAM->value,
-                'pacing' => PacingEnum::FAST->value,
-                'hook_type' => 'action',
-                'production_level' => ProductionLevelEnum::MID->value,
-                'has_visual_effects' => false,
-                'has_3d' => false,
-                'has_animations' => true,
-                'has_typography' => true,
-                'has_sound_design' => false,
-                'search_profile' => 'Быстрая вертикальная реклама для Instagram с анимацией и типографикой',
-                'search_metadata' => 'fast paced vertical instagram animation typography trendy',
-            ],
-            [
-                'title' => 'Documentary Style Short Film',
-                'source_url' => 'https://www.youtube.com/watch?v=example3',
-                'preview_url' => 'https://example.com/preview3.jpg',
-                'public_summary' => 'Короткометражный фильм в документальном стиле',
-                'details_public' => ['style' => 'documentary', 'camera' => 'handheld'],
-                'duration_sec' => 180,
-                'category_id' => $categories->where('slug', 'short-film')->first()->id,
-                'platform' => PlatformEnum::YOUTUBE->value,
-                'pacing' => PacingEnum::MIXED->value,
-                'hook_type' => 'narrative',
-                'production_level' => ProductionLevelEnum::LOW->value,
-                'has_visual_effects' => false,
-                'has_3d' => false,
-                'has_animations' => false,
-                'has_typography' => false,
-                'has_sound_design' => true,
-                'search_profile' => 'Документальный короткометражный фильм с ручной камерой, смешанным темпом и саунд-дизайном',
-                'search_metadata' => 'documentary short film handheld camera narrative sound design',
-            ],
+        // Test video references (20-30 items)
+        $videoReferences = [
+            ['title' => 'Test Video Reference 1', 'source_url' => 'https://www.youtube.com/watch?v=test1', 'search_profile' => 'Test video reference 1'],
+            ['title' => 'Test Video Reference 2', 'source_url' => 'https://www.youtube.com/watch?v=test2', 'search_profile' => 'Test video reference 2'],
+            ['title' => 'Test Video Reference 3', 'source_url' => 'https://www.youtube.com/watch?v=test3', 'search_profile' => 'Test video reference 3'],
+            ['title' => 'Test Video Reference 4', 'source_url' => 'https://www.youtube.com/watch?v=test4', 'search_profile' => 'Test video reference 4'],
+            ['title' => 'Test Video Reference 5', 'source_url' => 'https://www.youtube.com/watch?v=test5', 'search_profile' => 'Test video reference 5'],
+            ['title' => 'Test Video Reference 6', 'source_url' => 'https://www.youtube.com/watch?v=test6', 'search_profile' => 'Test video reference 6'],
+            ['title' => 'Test Video Reference 7', 'source_url' => 'https://www.youtube.com/watch?v=test7', 'search_profile' => 'Test video reference 7'],
+            ['title' => 'Test Video Reference 8', 'source_url' => 'https://www.youtube.com/watch?v=test8', 'search_profile' => 'Test video reference 8'],
+            ['title' => 'Test Video Reference 9', 'source_url' => 'https://www.youtube.com/watch?v=test9', 'search_profile' => 'Test video reference 9'],
+            ['title' => 'Test Video Reference 10', 'source_url' => 'https://www.youtube.com/watch?v=test10', 'search_profile' => 'Test video reference 10'],
+            ['title' => 'Test Video Reference 11', 'source_url' => 'https://www.youtube.com/watch?v=test11', 'search_profile' => 'Test video reference 11'],
+            ['title' => 'Test Video Reference 12', 'source_url' => 'https://www.youtube.com/watch?v=test12', 'search_profile' => 'Test video reference 12'],
+            ['title' => 'Test Video Reference 13', 'source_url' => 'https://www.youtube.com/watch?v=test13', 'search_profile' => 'Test video reference 13'],
+            ['title' => 'Test Video Reference 14', 'source_url' => 'https://www.youtube.com/watch?v=test14', 'search_profile' => 'Test video reference 14'],
+            ['title' => 'Test Video Reference 15', 'source_url' => 'https://www.youtube.com/watch?v=test15', 'search_profile' => 'Test video reference 15'],
+            ['title' => 'Test Video Reference 16', 'source_url' => 'https://www.youtube.com/watch?v=test16', 'search_profile' => 'Test video reference 16'],
+            ['title' => 'Test Video Reference 17', 'source_url' => 'https://www.youtube.com/watch?v=test17', 'search_profile' => 'Test video reference 17'],
+            ['title' => 'Test Video Reference 18', 'source_url' => 'https://www.youtube.com/watch?v=test18', 'search_profile' => 'Test video reference 18'],
+            ['title' => 'Test Video Reference 19', 'source_url' => 'https://www.youtube.com/watch?v=test19', 'search_profile' => 'Test video reference 19'],
+            ['title' => 'Test Video Reference 20', 'source_url' => 'https://www.youtube.com/watch?v=test20', 'search_profile' => 'Test video reference 20'],
+            ['title' => 'Test Video Reference 21', 'source_url' => 'https://www.youtube.com/watch?v=test21', 'search_profile' => 'Test video reference 21'],
+            ['title' => 'Test Video Reference 22', 'source_url' => 'https://www.youtube.com/watch?v=test22', 'search_profile' => 'Test video reference 22'],
+            ['title' => 'Test Video Reference 23', 'source_url' => 'https://www.youtube.com/watch?v=test23', 'search_profile' => 'Test video reference 23'],
+            ['title' => 'Test Video Reference 24', 'source_url' => 'https://www.youtube.com/watch?v=test24', 'search_profile' => 'Test video reference 24'],
+            ['title' => 'Test Video Reference 25', 'source_url' => 'https://www.youtube.com/watch?v=test25', 'search_profile' => 'Test video reference 25'],
+            ['title' => 'Test Video Reference 26', 'source_url' => 'https://www.youtube.com/watch?v=test26', 'search_profile' => 'Test video reference 26'],
+            ['title' => 'Test Video Reference 27', 'source_url' => 'https://www.youtube.com/watch?v=test27', 'search_profile' => 'Test video reference 27'],
+            ['title' => 'Test Video Reference 28', 'source_url' => 'https://www.youtube.com/watch?v=test28', 'search_profile' => 'Test video reference 28'],
+            ['title' => 'Test Video Reference 29', 'source_url' => 'https://www.youtube.com/watch?v=test29', 'search_profile' => 'Test video reference 29'],
+            ['title' => 'Test Video Reference 30', 'source_url' => 'https://www.youtube.com/watch?v=test30', 'search_profile' => 'Test video reference 30'],
         ];
 
-        foreach ($examples as $example) {
-            $videoReference = VideoReference::create($example);
-
-            // Привязываем случайные теги
-            $randomTags = $tags->random(rand(2, 5));
-            $videoReference->tags()->attach($randomTags->pluck('id'));
-
-            // Добавляем tutorials для некоторых видео
-            if (rand(0, 1)) {
-                $videoReference->tutorials()->create([
-                    'tutorial_url' => 'https://www.youtube.com/watch?v=tutorial1',
-                    'label' => 'Color Grading',
-                    'start_sec' => 10,
-                    'end_sec' => 25,
-                ]);
-            }
+        foreach ($videoReferences as $index => $videoData) {
+            // Распределяем по категориям циклически
+            $category = $categories[$index % $categories->count()];
+            
+            VideoReference::create([
+                'title' => $videoData['title'],
+                'source_url' => $videoData['source_url'],
+                'search_profile' => $videoData['search_profile'],
+                'category_id' => $category->id,
+            ]);
         }
     }
 }
