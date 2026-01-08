@@ -50,6 +50,16 @@ class PostgresSearchService
      */
     public function buildFilters(Builder $query, array $filters): Builder
     {
+        // Строгий фильтр по ID (точное совпадение)
+        if (isset($filters['id']) && $filters['id'] !== null) {
+            $query->where('id', $filters['id']);
+        }
+
+        // Строгий фильтр по source_url (точное совпадение)
+        if (isset($filters['source_url']) && $filters['source_url'] !== null && $filters['source_url'] !== '') {
+            $query->where('source_url', $filters['source_url']);
+        }
+
         // Фильтр по категории
         if (!empty($filters['category_id'])) {
             $query->where('category_id', $filters['category_id']);

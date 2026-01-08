@@ -27,6 +27,8 @@ class FilterVideoReferenceRequest extends FormRequest
     {
         return [
             'search' => ['nullable', 'string'],
+            'id' => ['nullable', 'integer', 'min:1'],
+            'source_url' => ['nullable', 'string', 'max:2048'],
             'category_id' => ['nullable', 'exists:categories,id'],
             'platform' => ['nullable', 'string', Rule::in(PlatformEnum::values())],
             'pacing' => ['nullable', 'string', Rule::in(PacingEnum::values())],
