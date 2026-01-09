@@ -8,6 +8,7 @@ use App\Http\Requests\StoreVideoReferenceRequest;
 use App\Http\Requests\UpdateVideoReferenceRequest;
 use App\Models\Tag;
 use App\Models\VideoReference;
+use App\Services\PlatformNormalizationService;
 use App\Services\PostgresSearchService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,7 +16,8 @@ use Illuminate\Http\Request;
 class VideoReferenceController extends Controller
 {
     public function __construct(
-        private PostgresSearchService $searchService
+        private PostgresSearchService $searchService,
+        private PlatformNormalizationService $normalizationService
     ) {
     }
 
@@ -55,11 +57,22 @@ class VideoReferenceController extends Controller
     {
         $validated = $request->validated();
 
-        // Автоматически определяем platform из URL если не указан
-        if (empty($validated['platform']) && !empty($validated['source_url'])) {
-            $platform = PlatformEnum::fromUrl($validated['source_url']);
-            if ($platform) {
-                $validated['platform'] = $platform->value;
+        // Нормализация URL: определяем platform и извлекаем platform_video_id
+        if (!empty($validated['source_url'])) {
+            $normalized = $this->normalizationService->normalizeUrl($validated['source_url']);
+            
+            // Если нормализация успешна, используем её данные
+            if ($normalized['normalized']) {
+                $validated['platform'] = $normalized['platform'];
+                $validated['platform_video_id'] = $normalized['platform_video_id'];
+            } else {
+                // Если не удалось нормализовать, пытаемся определить platform через enum
+                if (empty($validated['platform'])) {
+                    $platform = PlatformEnum::fromUrl($validated['source_url']);
+                    if ($platform) {
+                        $validated['platform'] = $platform->value;
+                    }
+                }
             }
         }
 
@@ -131,11 +144,24 @@ class VideoReferenceController extends Controller
         $videoReference = VideoReference::findOrFail($id);
         $validated = $request->validated();
 
-        // Автоматически определяем platform из URL если изменился source_url
-        if (isset($validated['source_url']) && empty($validated['platform'])) {
-            $platform = PlatformEnum::fromUrl($validated['source_url']);
-            if ($platform) {
-                $validated['platform'] = $platform->value;
+        // Если изменился source_url, перенормализовать
+        if (isset($validated['source_url']) && 
+            $validated['source_url'] !== $videoReference->source_url) {
+            
+            $normalized = $this->normalizationService->normalizeUrl($validated['source_url']);
+            
+            // Если нормализация успешна, используем её данные
+            if ($normalized['normalized']) {
+                $validated['platform'] = $normalized['platform'];
+                $validated['platform_video_id'] = $normalized['platform_video_id'];
+            } else {
+                // Если не удалось нормализовать, пытаемся определить platform через enum
+                if (empty($validated['platform'])) {
+                    $platform = PlatformEnum::fromUrl($validated['source_url']);
+                    if ($platform) {
+                        $validated['platform'] = $platform->value;
+                    }
+                }
             }
         }
 

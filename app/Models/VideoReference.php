@@ -23,6 +23,7 @@ class VideoReference extends Model
         'duration_sec',
         'category_id',
         'platform',
+        'platform_video_id',
         'pacing',
         'hook_type',
         'production_level',
@@ -200,6 +201,31 @@ class VideoReference extends Model
             }
         }
         return $query;
+    }
+
+    /**
+     * Проверка, нормализовано ли видео
+     */
+    public function isNormalized(): bool
+    {
+        return !empty($this->platform) && !empty($this->platform_video_id);
+    }
+
+    /**
+     * Получить embed URL для встраивания
+     */
+    public function getEmbedUrlAttribute(): ?string
+    {
+        if (!$this->isNormalized()) {
+            return null;
+        }
+
+        return match($this->platform) {
+            'youtube' => "https://www.youtube.com/embed/{$this->platform_video_id}",
+            'tiktok' => "https://www.tiktok.com/player/v1/{$this->platform_video_id}",
+            'instagram' => $this->source_url, // Для Instagram используем source_url
+            default => null,
+        };
     }
 
     /**
