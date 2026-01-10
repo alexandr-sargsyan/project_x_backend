@@ -113,6 +113,16 @@ class PostgresSearchService
             }
         }
 
+        // Фильтр по тегам (tag_ids) - логика OR (хотя бы один из выбранных тегов)
+        if (!empty($filters['tag_ids']) && is_array($filters['tag_ids'])) {
+            $tagIds = array_filter($filters['tag_ids'], fn($id) => is_numeric($id));
+            if (!empty($tagIds)) {
+                $query->whereHas('tags', function ($q) use ($tagIds) {
+                    $q->whereIn('tags.id', $tagIds);
+                });
+            }
+        }
+
         return $query;
     }
 

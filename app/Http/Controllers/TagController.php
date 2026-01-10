@@ -11,9 +11,17 @@ class TagController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $tags = Tag::orderBy('name')->get();
+        $query = Tag::query();
+
+        // Поиск по имени тега
+        if ($request->has('search') && !empty($request->search)) {
+            $searchTerm = $request->search;
+            $query->where('name', 'ILIKE', "%{$searchTerm}%");
+        }
+
+        $tags = $query->orderBy('name')->get();
 
         return response()->json([
             'data' => $tags,

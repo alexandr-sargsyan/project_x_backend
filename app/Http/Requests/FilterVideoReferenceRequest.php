@@ -41,6 +41,8 @@ class FilterVideoReferenceRequest extends FormRequest
             'has_typography' => ['nullable', 'boolean'],
             'has_sound_design' => ['nullable', 'boolean'],
             'has_tutorial' => ['nullable', 'boolean'],
+            'tag_ids' => ['nullable', 'array'],
+            'tag_ids.*' => ['integer', 'exists:tags,id'],
             'sort_by' => ['nullable', 'string'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
