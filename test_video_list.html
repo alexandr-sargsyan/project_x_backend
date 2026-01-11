@@ -1,0 +1,512 @@
+<!--
+================================================================================
+TEST FILE: test_video_list.html
+================================================================================
+
+НАЗНАЧЕНИЕ:
+-----------
+Этот HTML файл предназначен для тестирования компонента VideoListPlayer
+в изолированной среде браузера. Он позволяет визуально проверить, как
+видео будет выглядеть в списке (каталоге) с различными параметрами.
+
+КОМПОНЕНТ ДЛЯ ТЕСТИРОВАНИЯ:
+----------------------------
+- VideoListPlayer.jsx (project_x_frontend/src/components/VideoPlayer/VideoListPlayer.jsx)
+- VideoListPlayer.css (project_x_frontend/src/components/VideoPlayer/VideoListPlayer.css)
+
+ПАРАМЕТРЫ ПО УМОЛЧАНИЮ (VideoListPlayer):
+------------------------------------------
+- autoplay: true (только если видно в viewport)
+- muted: true (без звука)
+- loop: true (с зацикливанием)
+- controls: false (без контролов)
+
+ВАЖНО - ОБЯЗАТЕЛЬНО ОБНОВЛЯТЬ:
+-------------------------------
+⚠️ ЭТОТ ФАЙЛ ДОЛЖЕН БЫТЬ СИНХРОНИЗИРОВАН С КОМПОНЕНТОМ VideoListPlayer!
+
+При любых изменениях в следующих файлах ОБЯЗАТЕЛЬНО обновите этот тестовый файл:
+1. VideoListPlayer.jsx - логика компонента, параметры по умолчанию
+2. VideoListPlayer.css - стили компонента
+3. YouTubePlayer.jsx - параметры YouTube iframe
+4. TikTokPlayer.jsx - параметры TikTok iframe
+5. usePlatformPlayer.js - логика выбора платформы
+
+ЧТО НУЖНО ПРОВЕРЯТЬ ПРИ ОБНОВЛЕНИИ:
+------------------------------------
+✓ Значения по умолчанию для чекбоксов соответствуют VideoListPlayer
+✓ Все параметры платформ (YouTube, TikTok) присутствуют в настройках
+✓ Стили .video-list-player соответствуют VideoListPlayer.css
+✓ Логика извлечения video ID соответствует PlatformNormalizationService
+✓ URL генерация соответствует логике в YouTubePlayer.jsx и TikTokPlayer.jsx
+
+ИСПОЛЬЗОВАНИЕ:
+--------------
+1. Откройте файл в браузере
+2. Вставьте URL видео в поле "Source URL"
+3. Выберите платформу (YouTube или TikTok)
+4. Измените параметры через чекбоксы
+5. Видео обновится автоматически
+6. Проверьте информационную панель для отладки URL и параметров
+
+================================================================================
+-->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test VideoListPlayer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+
+        .platform-settings {
+            display: none;
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+
+        .platform-settings.active {
+            display: block;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        .info {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #1976d2;
+            white-space: pre-wrap;
+        }
+
+        .error {
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #c62828;
+        }
+
+        /* Стили VideoListPlayer */
+        .video-list-player {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .video-list-player .video-container {
+            position: relative;
+            width: 100%;
+            height: 600px;
+            background: #000;
+            border-radius: 0;
+            overflow: hidden;
+            box-shadow: none;
+        }
+
+        .video-list-player .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .video-list-player .video-error {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #999;
+            font-size: 14px;
+            background: #f5f5f5;
+        }
+
+        .video-wrapper {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>Test VideoListPlayer</h1>
+    <p>Тестирование компонента для списка видео (muted, loop, no controls)</p>
+
+    <div class="controls">
+        <div class="control-group">
+            <label for="sourceUrl">Source URL:</label>
+            <input type="text" id="sourceUrl" placeholder="https://www.youtube.com/watch?v=..." value="">
+        </div>
+
+        <div class="control-group">
+            <label for="platform">Platform:</label>
+            <select id="platform">
+                <option value="youtube">YouTube</option>
+                <option value="tiktok">TikTok</option>
+            </select>
+        </div>
+
+        <!-- YouTube Settings -->
+        <div id="youtubeSettings" class="platform-settings">
+            <h3>YouTube Settings</h3>
+            <div class="settings-grid">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="yt_autoplay" checked>
+                    <label for="yt_autoplay">Autoplay</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="yt_mute" checked>
+                    <label for="yt_mute">Mute</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="yt_loop" checked>
+                    <label for="yt_loop">Loop</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="yt_controls">
+                    <label for="yt_controls">Controls</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="yt_rel" checked>
+                    <label for="yt_rel">Rel (show related videos)</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="yt_playsinline" checked>
+                    <label for="yt_playsinline">Plays Inline</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="yt_enablejsapi" checked>
+                    <label for="yt_enablejsapi">Enable JS API</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="yt_modestbranding">
+                    <label for="yt_modestbranding">Modest Branding</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="yt_iv_load_policy" checked>
+                    <label for="yt_iv_load_policy">IV Load Policy (annotations)</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="yt_cc_load_policy">
+                    <label for="yt_cc_load_policy">CC Load Policy (captions)</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="yt_fs" checked>
+                    <label for="yt_fs">Fullscreen Button</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- TikTok Settings -->
+        <div id="tiktokSettings" class="platform-settings">
+            <h3>TikTok Settings</h3>
+            <div class="settings-grid">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="tt_autoplay" checked>
+                    <label for="tt_autoplay">Autoplay</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="tt_loop" checked>
+                    <label for="tt_loop">Loop</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="tt_muted" checked>
+                    <label for="tt_muted">Muted</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="tt_controls">
+                    <label for="tt_controls">Controls</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="tt_progress_bar">
+                    <label for="tt_progress_bar">Progress Bar</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="tt_play_button">
+                    <label for="tt_play_button">Play Button</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="tt_volume_control">
+                    <label for="tt_volume_control">Volume Control</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="tt_fullscreen_button">
+                    <label for="tt_fullscreen_button">Fullscreen Button</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="tt_timestamp">
+                    <label for="tt_timestamp">Timestamp</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="tt_music_info">
+                    <label for="tt_music_info">Music Info</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="tt_description">
+                    <label for="tt_description">Description</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="tt_rel">
+                    <label for="tt_rel">Rel (related videos)</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="tt_native_context_menu">
+                    <label for="tt_native_context_menu">Native Context Menu</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="tt_closed_caption">
+                    <label for="tt_closed_caption">Closed Caption</label>
+                </div>
+            </div>
+        </div>
+
+        <div id="info" class="info" style="display: none;"></div>
+        <div id="error" class="error" style="display: none;"></div>
+    </div>
+
+    <div class="video-wrapper">
+        <div class="video-list-player">
+            <div class="video-container" id="videoContainer">
+                <div class="video-error">Введите URL и выберите платформу</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function extractYouTubeId(url) {
+            const patterns = [
+                /youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+                /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+                /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+                /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+                /m\.youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+            ];
+
+            for (const pattern of patterns) {
+                const match = url.match(pattern);
+                if (match) {
+                    return match[1];
+                }
+            }
+            return null;
+        }
+
+        function extractTikTokId(url) {
+            const match = url.match(/tiktok\.com\/@[^\/]+\/video\/(\d+)/);
+            if (match) {
+                return match[1];
+            }
+
+            const mobileMatch = url.match(/m\.tiktok\.com\/v\/(\d+)/);
+            if (mobileMatch) {
+                return mobileMatch[1];
+            }
+
+            return null;
+        }
+
+        function showPlatformSettings(platform) {
+            document.getElementById('youtubeSettings').classList.remove('active');
+            document.getElementById('tiktokSettings').classList.remove('active');
+
+            if (platform === 'youtube') {
+                document.getElementById('youtubeSettings').classList.add('active');
+            } else if (platform === 'tiktok') {
+                document.getElementById('tiktokSettings').classList.add('active');
+            }
+        }
+
+        function updateVideo() {
+            const sourceUrl = document.getElementById('sourceUrl').value.trim();
+            const platform = document.getElementById('platform').value;
+
+            const infoDiv = document.getElementById('info');
+            const errorDiv = document.getElementById('error');
+            const container = document.getElementById('videoContainer');
+
+            infoDiv.style.display = 'none';
+            errorDiv.style.display = 'none';
+
+            if (!sourceUrl) {
+                container.innerHTML = '<div class="video-error">Введите URL</div>';
+                return;
+            }
+
+            let videoId = null;
+
+            if (platform === 'youtube') {
+                videoId = extractYouTubeId(sourceUrl);
+            } else if (platform === 'tiktok') {
+                videoId = extractTikTokId(sourceUrl);
+            }
+
+            if (!videoId) {
+                errorDiv.textContent = `Не удалось извлечь video ID из URL для платформы ${platform}`;
+                errorDiv.style.display = 'block';
+                container.innerHTML = '<div class="video-error">Video ID не найден</div>';
+                return;
+            }
+
+            let embedUrl = '';
+            let params = {};
+
+            if (platform === 'youtube') {
+                params = {
+                    controls: document.getElementById('yt_controls').checked ? '1' : '0',
+                    autoplay: document.getElementById('yt_autoplay').checked ? '1' : '0',
+                    mute: document.getElementById('yt_mute').checked ? '1' : '0',
+                    rel: document.getElementById('yt_rel').checked ? '1' : '0',
+                    playsinline: document.getElementById('yt_playsinline').checked ? '1' : '0',
+                    enablejsapi: document.getElementById('yt_enablejsapi').checked ? '1' : '0',
+                    loop: document.getElementById('yt_loop').checked ? '1' : '0',
+                    modestbranding: document.getElementById('yt_modestbranding').checked ? '1' : '0',
+                    iv_load_policy: document.getElementById('yt_iv_load_policy').checked ? '1' : '3',
+                    cc_load_policy: document.getElementById('yt_cc_load_policy').checked ? '1' : '0',
+                    fs: document.getElementById('yt_fs').checked ? '1' : '0',
+                };
+
+                if (params.loop === '1') {
+                    params.playlist = videoId;
+                }
+
+                const urlParams = new URLSearchParams();
+                Object.keys(params).forEach(key => {
+                    if (params[key] !== '0' || key === 'mute' || key === 'controls' || key === 'rel' || key === 'playsinline' || key === 'enablejsapi' || key === 'loop' || key === 'iv_load_policy' || key === 'cc_load_policy' || key === 'fs') {
+                        urlParams.append(key, params[key]);
+                    }
+                });
+
+                embedUrl = `https://www.youtube.com/embed/${videoId}?${urlParams.toString()}`;
+            } else if (platform === 'tiktok') {
+                params = {
+                    autoplay: document.getElementById('tt_autoplay').checked ? '1' : '0',
+                    loop: document.getElementById('tt_loop').checked ? '1' : '0',
+                    muted: document.getElementById('tt_muted').checked ? '1' : '0',
+                    controls: document.getElementById('tt_controls').checked ? '1' : '0',
+                    progress_bar: document.getElementById('tt_progress_bar').checked ? '1' : '0',
+                    play_button: document.getElementById('tt_play_button').checked ? '1' : '0',
+                    volume_control: document.getElementById('tt_volume_control').checked ? '1' : '0',
+                    fullscreen_button: document.getElementById('tt_fullscreen_button').checked ? '1' : '0',
+                    timestamp: document.getElementById('tt_timestamp').checked ? '1' : '0',
+                    music_info: document.getElementById('tt_music_info').checked ? '1' : '0',
+                    description: document.getElementById('tt_description').checked ? '1' : '0',
+                    rel: document.getElementById('tt_rel').checked ? '1' : '0',
+                    native_context_menu: document.getElementById('tt_native_context_menu').checked ? '1' : '0',
+                    closed_caption: document.getElementById('tt_closed_caption').checked ? '1' : '0',
+                };
+
+                const urlParams = new URLSearchParams();
+                Object.keys(params).forEach(key => {
+                    urlParams.append(key, params[key]);
+                });
+
+                embedUrl = `https://www.tiktok.com/player/v1/${videoId}?${urlParams.toString()}`;
+            }
+
+            // Показать информацию
+            let infoText = `Platform: ${platform}\nVideo ID: ${videoId}\n\nParameters:\n`;
+            Object.keys(params).forEach(key => {
+                infoText += `${key}: ${params[key]}\n`;
+            });
+            infoText += `\nFull URL:\n${embedUrl}`;
+            infoDiv.textContent = infoText;
+            infoDiv.style.display = 'block';
+
+            container.innerHTML = `
+                <iframe
+                    src="${embedUrl}"
+                    allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+                    allowfullscreen
+                ></iframe>
+            `;
+        }
+
+        // Обработчики событий
+        document.getElementById('platform').addEventListener('change', function() {
+            showPlatformSettings(this.value);
+            updateVideo();
+        });
+
+        document.getElementById('sourceUrl').addEventListener('input', updateVideo);
+
+        // YouTube settings
+        ['yt_autoplay', 'yt_mute', 'yt_loop', 'yt_controls', 'yt_rel', 'yt_playsinline', 'yt_enablejsapi', 'yt_modestbranding', 'yt_iv_load_policy', 'yt_cc_load_policy', 'yt_fs'].forEach(id => {
+            document.getElementById(id).addEventListener('change', updateVideo);
+        });
+
+        // TikTok settings
+        ['tt_autoplay', 'tt_loop', 'tt_muted', 'tt_controls', 'tt_progress_bar', 'tt_play_button', 'tt_volume_control', 'tt_fullscreen_button', 'tt_timestamp', 'tt_music_info', 'tt_description', 'tt_rel', 'tt_native_context_menu', 'tt_closed_caption'].forEach(id => {
+            document.getElementById(id).addEventListener('change', updateVideo);
+        });
+
+        // Показать настройки для выбранной платформы при загрузке
+        showPlatformSettings(document.getElementById('platform').value);
+    </script>
+</body>
+</html>
