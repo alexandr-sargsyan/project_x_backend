@@ -31,7 +31,7 @@
 - Интеллектуальный поиск с учётом релевантности и контекста
 - Фильтрация по:
   - Категории (category_id)
-  - Платформе (Instagram / TikTok / YouTube)
+  - Платформе (Instagram / TikTok / YouTube / Facebook) — множественный выбор через чекбоксы
   - Темпу (pacing: slow / fast / mixed)
   - Типу "хука" (hook_type)
   - Длительности (duration_sec — фильтрация по диапазонам в UI)
@@ -104,7 +104,7 @@
 
 **В листинге (карточка):**
 - `title` — короткий заголовок
-- `platform` — Instagram / TikTok / YouTube (с иконкой)
+- `platform` — Instagram / TikTok / YouTube / Facebook (с иконкой)
 - `category_id` — категория (бейдж)
 - `tags[]` — список тегов
 - `preview_embed / preview_url` — превью/плеер (muted autoplay на hover)
@@ -126,8 +126,8 @@
 ### Filter Fields (по чему фильтруем)
 
 Эти поля используются для фильтрации через WHERE условия в PostgreSQL:
-- `category_id` (foreign key)
-- `platform` (string, nullable) — определяется автоматически по URL
+- `category_id` (foreign key) — может быть массивом (множественный выбор)
+- `platform` (string, nullable) — определяется автоматически по URL, может быть массивом (множественный выбор через чекбоксы)
 - `pacing` (string, nullable)
 - `hook_type` (string, nullable)
 - `duration_sec` (integer, nullable) — хранится в секундах
