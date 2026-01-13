@@ -1,6 +1,6 @@
 # 📊 Текущее состояние проекта: Filmmaker Reference Platform
 
-**Дата обновления:** 2026-01-12  
+**Дата обновления:** 2026-01-13  
 **Версия:** MVP (в разработке)
 
 ---
@@ -15,6 +15,7 @@ Filmmaker Reference Platform — это платформа для поиска �
 - **База данных:** PostgreSQL 12+ (full-text search через tsvector/tsquery)
 - **Frontend:** React 19, React Router DOM 7, TanStack Query 5
 - **Admin Panel:** React 19, React Router DOM 7
+- **Аутентификация:** Laravel Passport (OAuth2)
 
 ---
 
@@ -22,36 +23,77 @@ Filmmaker Reference Platform — это платформа для поиска �
 
 ### Таблицы
 
-#### 1. `categories`
+#### 1. `users`
+Пользователи системы.
+
+**Поля:**
+- `id` (bigint, PK)
+- `name` (string)
+- `email` (string, unique)
+- `password` (string, hashed)
+- `email_verified_at` (timestamp, nullable)
+- `remember_token` (string, nullable)
+- `created_at`, `updated_at` (timestamps)
+
+#### 2. `email_verification_codes`
+Коды подтверждения email (6-значные коды).
+
+**Поля:**
+- `id` (bigint, PK)
+- `email` (string, index)
+- `code` (string, 6 символов)
+- `expires_at` (timestamp)
+- `verified_at` (timestamp, nullable)
+- `created_at`, `updated_at` (timestamps)
+
+**Индексы:**
+- Уникальный индекс на `(email, code)`
+- `email` (index)
+- `expires_at` (index)
+
+**Логика:**
+- Код действителен 15 минут
+- После подтверждения код помечается как использованный (`verified_at`)
+- Можно генерировать новый код (старый помечается как неактивный)
+
+#### 3. `oauth_*` (Laravel Passport)
+Таблицы для OAuth2 аутентификации через Laravel Passport:
+- `oauth_auth_codes`
+- `oauth_access_tokens`
+- `oauth_refresh_tokens`
+- `oauth_clients`
+- `oauth_device_codes`
+
+#### 4. `categories`
 Категории видео-референсов (иерархическая структура).
 
 **Поля:**
 - `id` (bigint, PK)
 - `name` (string, unique)
 - `slug` (string, unique)
-- `parent_id` (bigint, nullable, FK → categories.id) — для подкатегорий
+- `parent_id` (bigint, nullable, FK → categories.id)
 - `order` (integer, default 0)
 - `created_at`, `updated_at` (timestamps)
 
-#### 2. `video_references`
+#### 5. `video_references`
 Основная таблица для видео-референсов.
 
 **Display Fields (что видит пользователь):**
 - `id` (bigint, PK)
-- `title` (string) — заголовок
-- `source_url` (string) — оригинальная ссылка на видео
-- `preview_url` (string, nullable) — URL превью изображения
-- `preview_embed` (text, nullable) — embed код
-- `public_summary` (text, nullable) — короткое описание
-- `details_public` (json, nullable) — дополнительные детали
-- `duration_sec` (integer, nullable) — длительность в секундах
+- `title` (string)
+- `source_url` (string)
+- `preview_url` (string, nullable)
+- `preview_embed` (text, nullable)
+- `public_summary` (text, nullable)
+- `details_public` (json, nullable)
+- `duration_sec` (integer, nullable)
 
 **Filter Fields (по чему фильтруем):**
 - `category_id` (bigint, FK → categories.id)
 - `platform` (string, nullable) — платформа: `youtube`, `tiktok`, `instagram`, `facebook`
-- `platform_video_id` (string, nullable) — ID видео на платформе после нормализации
+- `platform_video_id` (string, nullable)
 - `pacing` (string, nullable) — темп: `slow`, `fast`, `mixed`
-- `hook_type` (string, nullable) — тип "хука"
+- `hook_type` (string, nullable)
 - `production_level` (string, nullable) — уровень продакшена: `low`, `mid`, `high`
 - `has_visual_effects` (boolean, default false)
 - `has_3d` (boolean, default false)
@@ -72,7 +114,53 @@ Filmmaker Reference Platform — это платформа для поиска �
 **Служебные:**
 - `created_at`, `updated_at` (timestamps)
 
-#### 3. `tags`
+#### 6. `video_reference_likes`
+Лайки пользователей на видео.
+
+**Поля:**
+- `id` (bigint, PK)
+- `user_id` (bigint, FK → users.id, onDelete: cascade)
+- `video_reference_id` (bigint, FK → video_references.id, onDelete: cascade)
+- `created_at`, `updated_at` (timestamps)
+
+**Индексы:**
+- Уникальный индекс на `(user_id, video_reference_id)`
+- `user_id` (index)
+- `video_reference_id` (index)
+
+#### 7. `video_collections`
+Каталоги/коллекции пользователей.
+
+**Поля:**
+- `id` (bigint, PK)
+- `user_id` (bigint, FK → users.id, onDelete: cascade)
+- `name` (string)
+- `is_default` (boolean, default false)
+- `created_at`, `updated_at` (timestamps)
+
+**Индексы:**
+- `user_id` (index)
+- Уникальный индекс на `(user_id, is_default)` где `is_default = true`
+
+**Ограничения:**
+- Дефолтный каталог нельзя удалять
+- Дефолтный каталог нельзя переименовывать (name всегда "Избранное")
+
+#### 8. `video_collection_items`
+Связь видео с каталогами (многие-ко-многим).
+
+**Поля:**
+- `id` (bigint, PK)
+- `collection_id` (bigint, FK → video_collections.id, onDelete: cascade)
+- `video_reference_id` (bigint, FK → video_references.id, onDelete: cascade)
+- `created_at`, `updated_at` (timestamps)
+
+**Индексы:**
+- Уникальный индекс на `(collection_id, video_reference_id)`
+- `collection_id` (index)
+- `video_reference_id` (index)
+
+#### 9. `tags`
 Теги для видео-референсов.
 
 **Поля:**
@@ -80,7 +168,7 @@ Filmmaker Reference Platform — это платформа для поиска �
 - `name` (string, unique)
 - `created_at`, `updated_at` (timestamps)
 
-#### 4. `video_reference_tag`
+#### 10. `video_reference_tag`
 Pivot таблица для связи многие-ко-многим между `video_references` и `tags`.
 
 **Поля:**
@@ -88,26 +176,26 @@ Pivot таблица для связи многие-ко-многим между
 - `tag_id` (bigint, FK → tags.id)
 - Уникальный индекс на `(video_reference_id, tag_id)`
 
-#### 5. `tutorials`
+#### 11. `tutorials`
 Обучающие материалы (могут быть связаны с несколькими видео).
 
 **Поля:**
 - `id` (bigint, PK)
-- `tutorial_url` (string, nullable) — ссылка на внешний урок
-- `label` (string, nullable) — название сегмента/урока
+- `tutorial_url` (string, nullable)
+- `label` (string, nullable)
 - `created_at`, `updated_at` (timestamps)
 
 **Валидация:** Хотя бы одно из полей (`tutorial_url` или `label`) должно быть заполнено.
 
-#### 6. `tutorial_video_reference`
+#### 12. `tutorial_video_reference`
 Pivot таблица для связи многие-ко-многим между `tutorials` и `video_references`.
 
 **Поля:**
 - `id` (bigint, PK)
 - `tutorial_id` (bigint, FK → tutorials.id)
 - `video_reference_id` (bigint, FK → video_references.id)
-- `start_sec` (integer, nullable) — начало сегмента в секундах
-- `end_sec` (integer, nullable) — конец сегмента в секундах
+- `start_sec` (integer, nullable)
+- `end_sec` (integer, nullable)
 - `created_at`, `updated_at` (timestamps)
 - Уникальный индекс на `(tutorial_id, video_reference_id)`
 
@@ -117,6 +205,27 @@ Pivot таблица для связи многие-ко-многим между
 
 ### Модели
 
+#### `User`
+**Расположение:** `app/Models/User.php`
+
+**Связи:**
+- `emailVerificationCodes()` — HasMany → EmailVerificationCode
+- `likes()` — HasMany → VideoReferenceLike
+- `collections()` — HasMany → VideoCollection
+- `defaultCollection()` — HasOne → VideoCollection (where is_default = true)
+
+**Методы:**
+- `isEmailVerified(): bool` — проверка подтверждения email
+
+**Traits:**
+- `HasApiTokens` (Laravel Passport)
+
+#### `EmailVerificationCode`
+**Расположение:** `app/Models/EmailVerificationCode.php`
+
+**Связи:**
+- `user()` — BelongsTo → User (по email)
+
 #### `VideoReference`
 **Расположение:** `app/Models/VideoReference.php`
 
@@ -124,11 +233,15 @@ Pivot таблица для связи многие-ко-многим между
 - `category()` — BelongsTo → Category
 - `tags()` — BelongsToMany → Tag (через `video_reference_tag`)
 - `tutorials()` — BelongsToMany → Tutorial (через `tutorial_video_reference`, с pivot полями `start_sec`, `end_sec`)
+- `likes()` — HasMany → VideoReferenceLike
+- `likedByUsers()` — BelongsToMany → User (через `video_reference_likes`)
 
 **Computed Attributes:**
 - `tags_text` — склеенные теги в строку для поиска
 - `has_tutorial` — проверка наличия tutorials
 - `embed_url` — URL для встраивания (зависит от платформы)
+- `likes_count` — количество лайков
+- `is_liked` — лайкнул ли текущий пользователь (если авторизован)
 
 **Scopes:**
 - `scopeSearch()` — full-text search через PostgreSQL tsvector
@@ -141,6 +254,31 @@ Pivot таблица для связи многие-ко-многим между
 **Автоматические расчёты:**
 - `quality_score` — рассчитывается при сохранении (saving event)
 - `completeness_flags` — рассчитывается при сохранении (saving event)
+
+#### `VideoReferenceLike`
+**Расположение:** `app/Models/VideoReferenceLike.php`
+
+**Связи:**
+- `user()` — BelongsTo → User
+- `videoReference()` — BelongsTo → VideoReference
+
+#### `VideoCollection`
+**Расположение:** `app/Models/VideoCollection.php`
+
+**Связи:**
+- `user()` — BelongsTo → User
+- `videoCollectionItems()` — HasMany → VideoCollectionItem
+- `videoReferences()` — BelongsToMany → VideoReference (через `video_collection_items`)
+
+**Методы:**
+- `isDefault(): bool` — проверка, является ли каталог дефолтным
+
+#### `VideoCollectionItem`
+**Расположение:** `app/Models/VideoCollectionItem.php`
+
+**Связи:**
+- `collection()` — BelongsTo → VideoCollection
+- `videoReference()` — BelongsTo → VideoReference
 
 #### `Tutorial`
 **Расположение:** `app/Models/Tutorial.php`
@@ -195,6 +333,31 @@ Pivot таблица для связи многие-ко-многим между
 - `HIGH = 'high'`
 
 ### Сервисы
+
+#### `EmailVerificationService`
+**Расположение:** `app/Services/EmailVerificationService.php`
+
+**Назначение:** Генерация, отправка и проверка кодов подтверждения email.
+
+**Методы:**
+- `generateCode(string $email): string` — генерирует 6-значный код
+- `sendVerificationCode(string $email): bool` — отправляет код на email
+- `verifyCode(string $email, string $code): bool` — проверяет код
+- `isCodeExpired(EmailVerificationCode $code): bool` — проверяет истечение
+- `markAsVerified(string $email): void` — помечает email как подтвержденный
+
+**Логика:**
+- Код действителен 15 минут
+- При генерации нового кода старые помечаются как использованные
+- После подтверждения код помечается как использованный
+
+#### `EmailService`
+**Расположение:** `app/Services/EmailService.php`
+
+**Назначение:** Отправка email-уведомлений.
+
+**Методы:**
+- `sendVerificationCode(string $email, string $code): void` — отправка кода подтверждения
 
 #### `PlatformNormalizationService`
 **Расположение:** `app/Services/PlatformNormalizationService.php`
@@ -253,12 +416,55 @@ Pivot таблица для связи многие-ко-многим между
 
 ### Контроллеры
 
+#### `AuthController`
+**Расположение:** `app/Http/Controllers/AuthController.php`
+
+**Методы:**
+- `register(RegisterRequest $request)` — POST `/api/register` — регистрация пользователя (создает пользователя, отправляет код подтверждения, создает дефолтный каталог "Избранное")
+- `login(LoginRequest $request)` — POST `/api/login` — вход (проверяет email_verified_at, возвращает токен)
+- `logout(Request $request)` — POST `/api/logout` — выход (отзывает токен)
+- `me(Request $request)` — GET `/api/me` — получить текущего пользователя
+
+#### `EmailVerificationController`
+**Расположение:** `app/Http/Controllers/EmailVerificationController.php`
+
+**Методы:**
+- `sendCode(SendCodeRequest $request)` — POST `/api/email-verification/send-code` — отправить код на email
+- `verifyCode(VerifyCodeRequest $request)` — POST `/api/email-verification/verify-code` — проверить код и подтвердить email
+
+#### `LikeController`
+**Расположение:** `app/Http/Controllers/LikeController.php`
+
+**Методы:**
+- `toggleLike(string $videoReferenceId)` — POST `/api/video-references/{id}/like` — переключить лайк (добавить/убрать)
+- `checkLike(string $videoReferenceId)` — GET `/api/video-references/{id}/like` — проверить, лайкнул ли пользователь видео
+- `getUserLikes(Request $request)` — GET `/api/likes` — получить все лайки текущего пользователя
+
+#### `VideoCollectionController`
+**Расположение:** `app/Http/Controllers/VideoCollectionController.php`
+
+**Методы:**
+- `index(Request $request)` — GET `/api/collections` — список всех каталогов пользователя
+- `store(StoreCollectionRequest $request)` — POST `/api/collections` — создать каталог
+- `show(string $id)` — GET `/api/collections/{id}` — детали каталога с видео
+- `update(UpdateCollectionRequest $request, string $id)` — PUT `/api/collections/{id}` — обновить каталог (нельзя обновлять дефолтный)
+- `destroy(string $id)` — DELETE `/api/collections/{id}` — удалить каталог (нельзя удалять дефолтный)
+
+#### `VideoCollectionItemController`
+**Расположение:** `app/Http/Controllers/VideoCollectionItemController.php`
+
+**Методы:**
+- `index(string $collectionId)` — GET `/api/collections/{collectionId}/videos` — список видео в каталоге
+- `store(AddVideoRequest $request, string $collectionId)` — POST `/api/collections/{collectionId}/videos` — добавить видео в каталог
+- `destroy(string $collectionId, string $videoReferenceId)` — DELETE `/api/collections/{collectionId}/videos/{videoId}` — удалить видео из каталога
+- `checkSaved(string $videoReferenceId)` — GET `/api/video-references/{videoId}/saved` — проверить, сохранено ли видео в каталогах пользователя
+
 #### `VideoReferenceController`
 **Расположение:** `app/Http/Controllers/VideoReferenceController.php`
 
 **Методы:**
-- `index(FilterVideoReferenceRequest $request)` — GET `/api/video-references` — список с поиском и фильтрацией
-- `show(int $id)` — GET `/api/video-references/{id}` — детальная информация
+- `index(FilterVideoReferenceRequest $request)` — GET `/api/video-references` — список с поиском и фильтрацией (включает информацию о лайках)
+- `show(int $id)` — GET `/api/video-references/{id}` — детальная информация (включает информацию о лайках)
 - `store(StoreVideoReferenceRequest $request)` — POST `/api/video-references` — создание
 - `update(UpdateVideoReferenceRequest $request, int $id)` — PUT `/api/video-references/{id}` — обновление
 - `destroy(int $id)` — DELETE `/api/video-references/{id}` — удаление
@@ -268,6 +474,7 @@ Pivot таблица для связи многие-ко-многим между
 - Автоматическое создание тегов по именам (case-insensitive поиск существующих)
 - Поддержка many-to-many связи с tutorials (режимы "new" и "select")
 - При обновлении всегда синхронизирует tutorials (даже если пустой массив — удаляет все связи)
+- В ответах `index()` и `show()` включает `likes_count` и `is_liked` для авторизованных пользователей
 
 #### `CategoryController`
 **Расположение:** `app/Http/Controllers/CategoryController.php`
@@ -291,7 +498,80 @@ Pivot таблица для связи многие-ко-многим между
 **Методы:**
 - `index()` — GET `/api/tutorials` — список всех tutorials (id, label, tutorial_url)
 
+#### `ProfileController`
+**Расположение:** `app/Http/Controllers/ProfileController.php`
+
+**Методы:**
+- `show(Request $request)` — GET `/api/profile` — получить профиль текущего пользователя
+- `update(UpdateProfileRequest $request)` — PUT `/api/profile` — обновить профиль (имя)
+
+### Middleware
+
+#### `EnsureEmailVerified`
+**Расположение:** `app/Http/Middleware/EnsureEmailVerified.php`
+
+**Назначение:** Проверяет, подтвержден ли email пользователя перед доступом к защищенным роутам.
+
+**Логика:**
+- Проверяет `email_verified_at` у пользователя
+- Если не подтвержден, возвращает 403 с сообщением
+- Применяется к защищенным роутам (кроме отправки/проверки кода)
+
+### Mailables
+
+#### `EmailVerificationMail`
+**Расположение:** `app/Mail/EmailVerificationMail.php`
+
+**Назначение:** Email-уведомление с кодом подтверждения.
+
+**Шаблон:** `resources/views/emails/verification-code.blade.php`
+
+**Содержание:**
+- 6-значный код подтверждения
+- Инструкция по использованию
+- Время действия кода (15 минут)
+
 ### Request Validation
+
+#### `RegisterRequest`
+**Расположение:** `app/Http/Requests/RegisterRequest.php`
+
+**Параметры:**
+- `name` (required, string, max:255)
+- `email` (required, string, email, max:255, unique:users)
+- `password` (required, confirmed, Password::defaults())
+
+#### `LoginRequest`
+**Расположение:** `app/Http/Requests/LoginRequest.php`
+
+**Параметры:**
+- `email` (required, string, email)
+- `password` (required, string)
+
+#### `SendCodeRequest`
+**Расположение:** `app/Http/Requests/SendCodeRequest.php`
+
+**Параметры:**
+- `email` (required, string, email, exists:users,email)
+
+#### `VerifyCodeRequest`
+**Расположение:** `app/Http/Requests/VerifyCodeRequest.php`
+
+**Параметры:**
+- `email` (required, string, email, exists:users,email)
+- `code` (required, string, digits:6)
+
+#### `StoreCollectionRequest` / `UpdateCollectionRequest`
+**Расположение:** `app/Http/Requests/StoreCollectionRequest.php`, `app/Http/Requests/UpdateCollectionRequest.php`
+
+**Параметры:**
+- `name` (required, string, max:255)
+
+#### `AddVideoRequest`
+**Расположение:** `app/Http/Requests/AddVideoRequest.php`
+
+**Параметры:**
+- `video_reference_id` (required, integer, exists:video_references,id)
 
 #### `FilterVideoReferenceRequest`
 **Расположение:** `app/Http/Requests/FilterVideoReferenceRequest.php`
@@ -335,6 +615,23 @@ Pivot таблица для связи многие-ко-многим между
   - `start_sec` (nullable, integer, min:0)
   - `end_sec` (nullable, integer, min:0)
 
+### Seeders
+
+#### `UserSeeder`
+**Расположение:** `database/seeders/UserSeeder.php`
+
+**Назначение:** Создание дефолтного пользователя для разработчиков.
+
+**Учетные данные:**
+- Email: `developer@example.com`
+- Password: `developer`
+- Name: `Developer`
+- Email подтвержден: `Да` (email_verified_at заполнен)
+
+**Логика:**
+- Проверка существования пользователя перед созданием
+- После создания миграций для каталогов создает дефолтный каталог "Избранное"
+
 ---
 
 ## 🎨 Frontend (React)
@@ -345,13 +642,57 @@ Pivot таблица для связи многие-ко-многим между
 
 **`Home.jsx`**
 - Главная страница с каталогом видео
-- Интегрирует `VideoGrid`, `SearchBar`, `CategorySidebar`, `FilterSidebar`
+- Интегрирует `VideoGrid`, `SearchBar`, `CategorySidebar`, `FilterSidebar`, `Navigation`
 - Управляет состоянием фильтров и поиска
 - Использует TanStack Query для загрузки данных
+- Поддерживает модальные окна аутентификации (LoginModal, RegisterModal, EmailVerificationModal)
+- Передает `onAuthRequired` в компоненты для показа модалки регистрации при попытке действия без авторизации
 
 **`VideoDetail.jsx`**
 - Детальная страница видео
 - Интегрирует `VideoDetailView` и `VideoDetailSidebar`
+- Поддерживает модальные окна аутентификации
+
+**`Profile.jsx`**
+- Страница профиля пользователя
+- Отображает имя и email
+- Защищена (требует авторизации)
+
+**`Collections.jsx`**
+- Список всех каталогов пользователя
+- Создание, редактирование, удаление каталогов
+- Защищена (требует авторизации)
+
+**`CollectionDetail.jsx`**
+- Детальная страница каталога с видео
+- Просмотр видео в каталоге
+- Удаление видео из каталога
+- Защищена (требует авторизации)
+
+#### Компоненты аутентификации
+
+**`AuthContext.js`**
+- Контекст для управления состоянием аутентификации
+- Хранение токена в localStorage
+- Методы: `login`, `logout`, `register`, `sendVerificationCode`, `verifyCode`, `getCurrentUser`
+- Проверка авторизации через `isAuthenticated()`
+
+**`LoginModal.jsx`**
+- Модальное окно для входа
+- Валидация формы
+- Обработка ошибок
+- Переключение на регистрацию
+
+**`RegisterModal.jsx`**
+- Модальное окно для регистрации
+- Валидация формы
+- После успешной регистрации автоматически открывает модалку подтверждения email
+
+**`EmailVerificationModal.jsx`**
+- Модальное окно для подтверждения email
+- Ввод 6-значного кода
+- Повторная отправка кода (с таймером)
+- Поддержка `codeAlreadySent` для немедленного показа формы ввода после регистрации
 
 #### Компоненты видео-плееров
 
@@ -397,10 +738,13 @@ Pivot таблица для связи многие-ко-многим между
 - Карточка видео в списке
 - Lazy loading через Intersection Observer
 - Приоритет: активное видео → preview_url → placeholder
+- Интегрирует `LikeButton` и `SaveToCollectionButton`
+- Обработка `onAuthRequired` для показа модалки регистрации
 
 **`VideoGrid.jsx`**
 - Сетка видео-карточек
 - Responsive layout
+- Передает `onAuthRequired` в `VideoCard`
 
 **`VideoDetailView.jsx`**
 - Детальный вид видео
@@ -409,6 +753,24 @@ Pivot таблица для связи многие-ко-многим между
 **`VideoDetailSidebar.jsx`**
 - Боковая панель с деталями видео
 - Отображает категорию, теги, tutorials, флаги
+- Интегрирует `LikeButton` и `SaveToCollectionButton`
+
+**`LikeButton.jsx`**
+- Кнопка лайка с иконкой сердца
+- Отображает количество лайков
+- Красный цвет при лайке (Instagram-style #FF3040)
+- Переключение лайка через API
+- Синхронизация состояния с пропсами через `useEffect`
+- Обработка `onAuthRequired` для показа модалки регистрации
+
+**`SaveToCollectionButton.jsx`**
+- Кнопка сохранения в каталог
+- Синий цвет при сохранении (#3b82f6)
+- Модальное окно для выбора каталога
+- Добавление/удаление видео из каталогов
+- Проверка статуса сохранения через API
+- Обработка `onAuthRequired` для показа модалки регистрации
+- Тихая обработка ошибок (без alert при попытке добавить в тот же каталог)
 
 **`FilterSidebar.jsx`**
 - Боковая панель с фильтрами
@@ -434,65 +796,121 @@ Pivot таблица для связи многие-ко-многим между
 **`TagBadge.jsx`**
 - Бейдж тега
 
+**`Navigation.jsx`**
+- Навигация в header
+- Кнопки "Войти" и "Зарегистрироваться" (если не авторизован)
+- Меню пользователя с аватаром (если авторизован)
+- Поддержка модальных окон аутентификации
+- Ссылки на профиль и каталоги
+
 ### API Service
 
 **`api.js`**
+- Централизованный сервис для всех API запросов
+- Axios interceptors для автоматического добавления токена
+- Обработка ошибок 401 (удаление токена)
+
+**Методы:**
+
+**Аутентификация:**
+- `register(data)` — регистрация
+- `login(data)` — вход
+- `logout()` — выход
+- `getCurrentUser()` — получить текущего пользователя
+- `sendVerificationCode(data)` — отправить код подтверждения
+- `verifyCode(data)` — проверить код подтверждения
+
+**Видео-референсы:**
 - `searchVideoReferences(query, filters)` — поиск с фильтрами
 - `getVideoReference(id)` — получить видео по ID
+
+**Категории:**
 - `getCategories()` — список категорий
+- `getCategory(id)` — получить категорию по ID
+
+**Теги:**
 - `getTags(search)` — список тегов с поиском
+
+**Tutorials:**
 - `tutorialsAPI.getAll()` — список всех tutorials
+
+**Лайки:**
+- `toggleLike(videoId)` — переключить лайк
+- `checkLike(videoId)` — проверить лайк
+- `getUserLikes()` — получить все лайки пользователя
+
+**Каталоги:**
+- `getCollections()` — получить все каталоги
+- `getCollection(id)` — получить каталог по ID
+- `createCollection(name)` — создать каталог
+- `updateCollection(id, name)` — обновить каталог
+- `deleteCollection(id)` — удалить каталог
+- `getCollectionVideos(collectionId)` — получить видео в каталоге
+- `addVideoToCollection(collectionId, videoId)` — добавить видео в каталог
+- `removeVideoFromCollection(collectionId, videoId)` — удалить видео из каталога
+- `checkVideoSaved(videoId)` — проверить, сохранено ли видео в каталогах
+
+**Профиль:**
+- `getProfile()` — получить профиль
+- `updateProfile(data)` — обновить профиль
 
 ---
 
-## 🛠️ Admin Panel (React)
+## 🚀 API Endpoints
 
-### Структура компонентов
+### Публичные роуты (без аутентификации)
 
-#### Страницы
+**Аутентификация:**
+- `POST /api/register` — регистрация
+- `POST /api/login` — вход
+- `POST /api/email-verification/send-code` — отправить код подтверждения
+- `POST /api/email-verification/verify-code` — проверить код подтверждения
 
-**`VideoReferences.jsx`**
-- Список всех видео-референсов
-- Интегрирует `VideoReferenceList`
+**Контент:**
+- `GET /api/video-references` — список с поиском и фильтрацией
+- `GET /api/video-references/{id}` — детальная информация
+- `GET /api/categories` — список всех категорий
+- `GET /api/categories/{id}` — детальная информация
+- `GET /api/tags?search={query}` — список тегов с поиском
+- `GET /api/tutorials` — список всех tutorials
 
-**`Categories.jsx`**
-- Управление категориями
-- Интегрирует `CategoryList` и `CategoryForm`
+### Защищенные роуты (требуют аутентификации)
 
-### Компоненты
+**Аутентификация:**
+- `POST /api/logout` — выход
+- `GET /api/me` — текущий пользователь
 
-**`VideoReferenceList.jsx`**
-- Таблица со списком видео-референсов
-- Кнопки: Create, Edit, Delete
+### Защищенные роуты (требуют аутентификации и подтверждения email)
 
-**`VideoReferenceForm.jsx`**
-- Форма создания/редактирования видео-референса
-- Все поля из структуры данных
-- **Tutorials:**
-  - Переключатель режима "New" / "Select" для каждого tutorial
-  - В режиме "New": обязательные поля `tutorial_url` и `label`
-  - В режиме "Select": выбор из существующих tutorials (по label)
-  - Поля `start_sec` и `end_sec` доступны в обоих режимах
-  - Всегда отправляет поле `tutorials` (даже если пустой массив) для корректной синхронизации
+**CRUD для контента:**
+- `POST /api/video-references` — создание
+- `PUT /api/video-references/{id}` — обновление
+- `DELETE /api/video-references/{id}` — удаление
+- `POST /api/categories` — создание
+- `PUT /api/categories/{id}` — обновление
+- `DELETE /api/categories/{id}` — удаление
 
-**`CategoryList.jsx`**
-- Список категорий
-- Кнопки: Create, Edit, Delete
+**Лайки:**
+- `POST /api/video-references/{id}/like` — переключить лайк
+- `GET /api/video-references/{id}/like` — проверить лайк
+- `GET /api/likes` — все лайки пользователя
 
-**`CategoryForm.jsx`**
-- Форма создания/редактирования категории
+**Профиль:**
+- `GET /api/profile` — получить профиль
+- `PUT /api/profile` — обновить профиль
 
-**`Sidebar.jsx`**
-- Боковая навигация админ-панели
+**Каталоги:**
+- `GET /api/collections` — список каталогов
+- `POST /api/collections` — создать каталог
+- `GET /api/collections/{id}` — детали каталога
+- `PUT /api/collections/{id}` — обновить каталог
+- `DELETE /api/collections/{id}` — удалить каталог
 
-**`ConfirmModal.jsx`**
-- Модальное окно подтверждения удаления
-
-### API Service
-
-**`api.js`**
-- CRUD операции для video-references, categories
-- `tutorialsAPI.getAll()` — список всех tutorials для селектора
+**Видео в каталогах:**
+- `GET /api/collections/{collectionId}/videos` — список видео в каталоге
+- `POST /api/collections/{collectionId}/videos` — добавить видео
+- `DELETE /api/collections/{collectionId}/videos/{videoId}` — удалить видео
+- `GET /api/video-references/{videoId}/saved` — проверить, сохранено ли видео в каталогах
 
 ---
 
@@ -570,8 +988,25 @@ WHERE search_vector @@ to_tsquery('russian', ?)
 
 ## 🔄 Связи и отношения
 
-### VideoReference ↔ Tutorial (Many-to-Many)
+### User ↔ VideoReferenceLike (One-to-Many)
+- Один пользователь может лайкнуть много видео
+- Один лайк принадлежит одному пользователю
 
+### User ↔ VideoCollection (One-to-Many)
+- Один пользователь может иметь много каталогов
+- Один каталог принадлежит одному пользователю
+- У каждого пользователя есть один дефолтный каталог "Избранное"
+
+### VideoCollection ↔ VideoReference (Many-to-Many через VideoCollectionItem)
+- Один каталог может содержать много видео
+- Одно видео может быть в нескольких каталогах
+- Связь через `video_collection_items`
+
+### VideoReference ↔ VideoReferenceLike (One-to-Many)
+- Одно видео может иметь много лайков
+- Один лайк принадлежит одному видео
+
+### VideoReference ↔ Tutorial (Many-to-Many)
 **Pivot таблица:** `tutorial_video_reference`
 
 **Pivot поля:**
@@ -592,7 +1027,6 @@ WHERE search_vector @@ to_tsquery('russian', ?)
 - Пустой массив удаляет все связи через `sync([])`
 
 ### VideoReference ↔ Tag (Many-to-Many)
-
 **Pivot таблица:** `video_reference_tag`
 
 **Логика:**
@@ -601,38 +1035,9 @@ WHERE search_vector @@ to_tsquery('russian', ?)
 - Один тег может быть связан с несколькими video_references
 
 ### VideoReference ↔ Category (Many-to-One)
-
 **Логика:**
 - Один video_reference принадлежит одной категории
 - Одна категория может иметь несколько video_references
-
----
-
-## 🚀 API Endpoints
-
-### Video References
-
-- `GET /api/video-references` — список с поиском и фильтрацией
-- `GET /api/video-references/{id}` — детальная информация
-- `POST /api/video-references` — создание
-- `PUT /api/video-references/{id}` — обновление
-- `DELETE /api/video-references/{id}` — удаление
-
-### Categories
-
-- `GET /api/categories` — список всех категорий
-- `GET /api/categories/{id}` — детальная информация
-- `POST /api/categories` — создание
-- `PUT /api/categories/{id}` — обновление
-- `DELETE /api/categories/{id}` — удаление
-
-### Tags
-
-- `GET /api/tags?search={query}` — список тегов с поиском
-
-### Tutorials
-
-- `GET /api/tutorials` — список всех tutorials (id, label, tutorial_url)
 
 ---
 
@@ -666,6 +1071,45 @@ WHERE search_vector @@ to_tsquery('russian', ?)
 - Frontend использует чекбоксы вместо селектора
 - Backend использует `whereIn()` для массива платформ
 
+### Аутентификация и авторизация
+
+**Процесс регистрации:**
+1. Пользователь регистрируется (email, password, name)
+2. Создается пользователь с `email_verified_at = null`
+3. Автоматически создается дефолтный каталог "Избранное"
+4. Отправляется код подтверждения на email
+5. Пользователь вводит 6-значный код
+6. После подтверждения `email_verified_at` заполняется
+7. Пользователь может войти
+
+**Процесс входа:**
+1. Проверка email и password
+2. Проверка `email_verified_at` (если null, возвращается 403)
+3. Создание токена через Laravel Passport
+4. Возврат токена и информации о пользователе
+
+**Защита роутов:**
+- Middleware `auth:api` — проверяет наличие валидного токена
+- Middleware `email.verified` — проверяет подтверждение email
+- Публичные роуты: просмотр контента, регистрация, вход, отправка/проверка кода
+- Защищенные роуты: лайки, каталоги, профиль, CRUD контента
+
+### Лайки
+
+- Один пользователь может лайкнуть видео только один раз (уникальный индекс)
+- При удалении видео или пользователя лайки удаляются каскадно
+- Информация о лайках включается в ответы `index()` и `show()` для авторизованных пользователей
+- Frontend обновляет состояние сразу после клика (оптимистичное обновление)
+
+### Каталоги
+
+- При регистрации автоматически создается дефолтный каталог "Избранное"
+- Дефолтный каталог нельзя удалять или переименовывать
+- Одно видео можно добавить в несколько каталогов
+- Уникальный индекс на `(collection_id, video_reference_id)` предотвращает дубликаты
+- При попытке добавить видео в каталог, где оно уже есть, ошибка обрабатывается тихо (без alert)
+- При удалении каталога все видео удаляются из него каскадно
+
 ---
 
 ## 🔮 Будущие улучшения
@@ -676,17 +1120,16 @@ WHERE search_vector @@ to_tsquery('russian', ?)
    - Интеграция pgvector + embeddings для векторного поиска
    - Более точный поиск по смыслу
 
-2. **Подборки референсов:**
-   - Возможность создавать коллекции видео
-   - Обмен подборками между пользователями
+2. **Расширенные обучающие материалы:**
+   - Более детальная структура tutorials
+   - Интеграция с внешними образовательными платформами
 
 3. **Коммуникация:**
    - Раздел для обмена референсами между клиентами и видеографами
    - Комментарии и обсуждения
 
-4. **Расширенные обучающие материалы:**
-   - Более детальная структура tutorials
-   - Интеграция с внешними образовательными платформами
+4. **Сортировка по популярности:**
+   - Сортировка видео по количеству лайков
 
 ---
 
@@ -695,8 +1138,8 @@ WHERE search_vector @@ to_tsquery('russian', ?)
 - `video-player-architecture.md` — детальная архитектура видео-плееров
 - `technical-implementation-plan.md` — технический план реализации
 - `business-requirements.md` — бизнес-требования
+- `user-authentication-implementation-plan.md` — план реализации системы пользователей
 
 ---
 
-**Последнее обновление:** 2026-01-12
-
+**Последнее обновление:** 2026-01-13
