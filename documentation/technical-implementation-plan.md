@@ -697,7 +697,6 @@ project_x-admin-panel/
 **1. Display Fields:**
 - Title (input, required)
 - Source URL (input, required) — оригинальная ссылка на видео
-- Preview URL (input, optional)
 - Preview Embed (textarea, optional)
 - Public Summary (textarea, optional)
 - Details Public (textarea, optional) — JSON в виде текста
