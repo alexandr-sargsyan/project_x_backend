@@ -33,7 +33,7 @@
   - Категории (category_id)
   - Платформе (Instagram / TikTok / YouTube / Facebook) — множественный выбор через чекбоксы
   - Темпу (pacing: slow / fast / mixed)
-  - Типу "хука" (hook_type)
+  - Типу "хука" (hook_type) — способ привлечения внимания в начале видео (например, "question", "action", "visual", "emotional", "mystery", "sound")
   - Длительности (duration_sec — фильтрация по диапазонам в UI)
   - Уровню продакшена (production_level: low / mid / high)
   - Наличию визуальных эффектов (has_visual_effects)

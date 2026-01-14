@@ -703,12 +703,21 @@ project_x-admin-panel/
 - Duration (seconds) — не отображается в форме (для будущей автоматизации)
 
 **2. Filter Fields:**
-- Category (select, required) — простой select, показывает только конечные категории (без подкатегорий)
-  - Если у категории есть подкатегории, она не показывается в списке
-  - Подкатегории отображаются с префиксом "└─" для визуального отличия
+- Category Selection (отдельный блок):
+  - Два селектора размещены side-by-side:
+    - Parent Category (select, required, слева) — показывает все корневые категории
+    - Subcategory (select, справа) — изначально пуст и disabled
+  - Логика:
+    - Если у выбранной родительской категории есть подкатегории:
+      - Subcategory становится активным и обязательным
+      - Отображаются только подкатегории выбранной родительской категории
+      - Можно выбрать только подкатегорию (не родительскую)
+    - Если у выбранной родительской категории нет подкатегорий:
+      - Subcategory остается disabled
+      - Можно выбрать саму родительскую категорию
 - Platform — определяется автоматически на бэкенде, не отображается в форме
 - Pacing (select: slow/fast/mixed, optional)
-- Hook Type (input, optional)
+- Hook Type (input, optional) — текстовое поле для указания типа "хука" (зацепки) в видео (например, "question", "action", "visual", "emotional", "mystery", "sound")
 - Production Level (select: low/mid/high, optional)
 - Checkboxes:
   - Has Visual Effects
