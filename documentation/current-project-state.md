@@ -775,7 +775,9 @@ Pivot таблица для связи многие-ко-многим между
 - `production_level` (nullable, string, Rule::in(ProductionLevelEnum::values()))
 - `hook_type` (nullable, string)
 - `has_visual_effects`, `has_3d`, `has_animations`, `has_typography`, `has_sound_design` (nullable, boolean)
-- `tags` (nullable, array) — массив имен тегов
+- `tags` (required, array) — массив имен тегов (минимум 1 тег при создании)
+  - Валидация: только латинские буквы, без пробелов
+  - Формат: `["cinematic", "vfx", "typography"]` (вместо строки с запятыми)
 - `tutorials` (nullable, array) — массив объектов tutorial:
   - `mode` (required, 'new' | 'select')
   - `tutorial_id` (required if mode='select', integer, exists:tutorials,id)
