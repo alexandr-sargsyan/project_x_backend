@@ -79,9 +79,12 @@ class PostgresSearchService
             }
         }
 
-        // Фильтр по pacing
+        // Фильтр по pacing (поддержка массива)
         if (!empty($filters['pacing'])) {
-            $query->where('pacing', $filters['pacing']);
+            $pacingValues = is_array($filters['pacing']) ? $filters['pacing'] : [$filters['pacing']];
+            if (!empty($pacingValues)) {
+                $query->whereIn('pacing', $pacingValues);
+            }
         }
 
         // Фильтр по hook_type
@@ -89,9 +92,12 @@ class PostgresSearchService
             $query->where('hook_type', $filters['hook_type']);
         }
 
-        // Фильтр по production_level
+        // Фильтр по production_level (поддержка массива)
         if (!empty($filters['production_level'])) {
-            $query->where('production_level', $filters['production_level']);
+            $levelValues = is_array($filters['production_level']) ? $filters['production_level'] : [$filters['production_level']];
+            if (!empty($levelValues)) {
+                $query->whereIn('production_level', $levelValues);
+            }
         }
 
         // Фильтры по has_* полям
