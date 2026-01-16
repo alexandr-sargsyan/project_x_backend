@@ -10,6 +10,7 @@ use App\Http\Controllers\LikeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TutorialController;
+use App\Http\Controllers\SharedCollectionController;
 use App\Http\Controllers\VideoCollectionController;
 use App\Http\Controllers\VideoCollectionItemController;
 use App\Http\Controllers\VideoReferenceController;
@@ -26,6 +27,9 @@ Route::apiResource('video-references', VideoReferenceController::class)->only(['
 Route::apiResource('categories', CategoryController::class)->only(['index', 'show']);
 Route::get('tags', [TagController::class, 'index']);
 Route::get('tutorials', [TutorialController::class, 'index']);
+
+// Публичные роуты для расшаренных коллекций
+Route::get('shared/collections/{token}/videos', [SharedCollectionController::class, 'getVideos']);
 
 // Защищенные роуты (требуют аутентификации)
 Route::middleware('auth:api')->group(function () {

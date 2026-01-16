@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Str;
 
 class VideoCollection extends Model
 {
@@ -12,6 +13,7 @@ class VideoCollection extends Model
         'user_id',
         'name',
         'is_default',
+        'share_token',
     ];
 
     protected function casts(): array
@@ -48,5 +50,19 @@ class VideoCollection extends Model
     public function isDefault(): bool
     {
         return $this->is_default === true;
+    }
+
+    /**
+     * Boot метод для автоматической генерации share_token
+     */
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::creating(function (VideoCollection $collection) {
+            if (empty($collection->share_token)) {
+                $collection->share_token = (string) Str::uuid();
+            }
+        });
     }
 }

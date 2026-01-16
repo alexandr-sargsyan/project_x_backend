@@ -16,10 +16,12 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->string('name');
             $table->boolean('is_default')->default(false);
+            $table->uuid('share_token')->unique()->nullable();
             $table->timestamps();
 
             $table->index('user_id');
             $table->index('is_default');
+            $table->index('share_token');
             // Примечание: Проверка на единственность дефолтного каталога выполняется на уровне приложения
         });
     }
