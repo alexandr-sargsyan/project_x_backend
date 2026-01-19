@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Category;
 use App\Models\VideoReference;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -61,11 +62,27 @@ class PostgresSearchService
         }
 
         // Фильтр по категориям (category_ids) - логика OR (хотя бы одна из выбранных категорий)
+        // Если выбрана родительская категория, автоматически включаем все её подкатегории
         if (!empty($filters['category_ids']) && is_array($filters['category_ids'])) {
             $categoryIds = array_filter($filters['category_ids'], fn($id) => is_numeric($id));
             if (!empty($categoryIds)) {
-                $query->whereHas('categories', function ($q) use ($categoryIds) {
-                    $q->whereIn('categories.id', $categoryIds);
+                // Находим все родительские категории из выбранных
+                $parentCategories = Category::whereIn('id', $categoryIds)
+                    ->whereNull('parent_id')
+                    ->get();
+                
+                // Для каждой родительской категории получаем все дочерние (рекурсивно)
+                $allCategoryIds = $categoryIds;
+                foreach ($parentCategories as $parentCategory) {
+                    $childIds = $this->getAllChildCategoryIds($parentCategory->id);
+                    $allCategoryIds = array_merge($allCategoryIds, $childIds);
+                }
+                
+                // Убираем дубликаты
+                $allCategoryIds = array_unique($allCategoryIds);
+                
+                $query->whereHas('categories', function ($q) use ($allCategoryIds) {
+                    $q->whereIn('categories.id', $allCategoryIds);
                 });
             }
         }
@@ -177,6 +194,26 @@ class PostgresSearchService
 
         // Объединяем через & (AND логика)
         return implode(' & ', $words);
+    }
+
+    /**
+     * Рекурсивно получить все дочерние категории для родительской
+     */
+    protected function getAllChildCategoryIds(int $parentId): array
+    {
+        $childIds = [];
+        
+        // Получаем прямых потомков
+        $children = Category::where('parent_id', $parentId)->get();
+        
+        foreach ($children as $child) {
+            $childIds[] = $child->id;
+            // Рекурсивно получаем дочерние для этой категории
+            $grandChildren = $this->getAllChildCategoryIds($child->id);
+            $childIds = array_merge($childIds, $grandChildren);
+        }
+        
+        return $childIds;
     }
 }
 
