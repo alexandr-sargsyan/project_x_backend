@@ -33,7 +33,7 @@
   - Категориям (category_ids[]) — множественный выбор, логика OR (хотя бы одна из выбранных категорий)
   - Платформе (Instagram / TikTok / YouTube / Facebook) — множественный выбор через чекбоксы
   - Темпу (pacing: slow / fast / mixed)
-  - Типу "хука" (hook_type) — способ привлечения внимания в начале видео (например, "question", "action", "visual", "emotional", "mystery", "sound")
+  - Типу "хука" (hook_ids[]) — способ привлечения внимания в начале видео (например, "Question", "Action", "Visual", "Emotional", "Mystery", "Sound") — множественный выбор через чекбоксы
   - Длительности (duration_sec — фильтрация по диапазонам в UI)
   - Уровню продакшена (production_level: low / mid / high)
   - Наличию визуальных эффектов (has_visual_effects)
@@ -129,7 +129,7 @@
 - `category_ids[]` (массив foreign keys через pivot таблицу `video_reference_category`) — множественный выбор (логика OR)
 - `platform` (string, nullable) — определяется автоматически по URL, может быть массивом (множественный выбор через чекбоксы)
 - `pacing` (string, nullable)
-- `hook_type` (string, nullable)
+- `hook_id` (bigint, nullable, FK → hooks.id) — связь с таблицей hooks
 - `duration_sec` (integer, nullable) — хранится в секундах
 - `production_level` (string, nullable)
 - `has_visual_effects` (bool)
@@ -164,7 +164,7 @@
 
 ### Первая версия должна включать:
 - Базовый каталог из 20-30 тщательно отобранных видео-референсов
-- Основные фильтры (category, platform, pacing, hook_type, production_level)
+- Основные фильтры (category, platform, pacing, hook_ids[], production_level)
 - Checkbox фильтры (visual effects, 3D, animations, typography, sound design)
 - Full-text search в PostgreSQL (tsvector/tsquery) с поиском по title, search_profile, search_metadata
 - Система подписок (базовая)
