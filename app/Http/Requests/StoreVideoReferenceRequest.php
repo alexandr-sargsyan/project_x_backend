@@ -47,6 +47,9 @@ class StoreVideoReferenceRequest extends FormRequest
             'has_typography' => ['nullable', 'boolean'],
             'has_sound_design' => ['nullable', 'boolean'],
 
+            // Rating
+            'rating' => ['nullable', 'integer', 'min:0', 'max:10'],
+
             // Search Fields
             'search_profile' => ['required', 'string'],
             'search_metadata' => ['nullable', 'string'],

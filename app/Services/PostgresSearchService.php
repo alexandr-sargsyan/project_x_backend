@@ -25,8 +25,8 @@ class PostgresSearchService
         // Применяем фильтры
         $builder = $this->buildFilters($builder, $filters);
 
-        // Сортировка
-        $sortBy = $filters['sort_by'] ?? 'quality_score';
+        // Сортировка - всегда по рейтингу (высокий рейтинг первым)
+        $sortBy = $filters['sort_by'] ?? 'rating';
         $builder = $this->applySorting($builder, $sortBy);
 
         return $builder->paginate($perPage, ['*'], 'page', $page);
@@ -159,14 +159,16 @@ class PostgresSearchService
 
     /**
      * Применить сортировку
+     * По умолчанию всегда сортировка по рейтингу (высокий рейтинг первым)
      */
     protected function applySorting(Builder $query, string $sortBy): Builder
     {
         return match ($sortBy) {
-            'quality_score' => $query->orderBy('quality_score', 'desc')->orderBy('created_at', 'desc'),
-            'created_at' => $query->orderBy('created_at', 'desc'),
-            'relevance' => $query->orderBy('quality_score', 'desc')->orderBy('created_at', 'desc'),
-            default => $query->orderBy('quality_score', 'desc')->orderBy('created_at', 'desc'),
+            'rating' => $query->orderBy('rating', 'desc')->orderBy('created_at', 'desc'),
+            'quality_score' => $query->orderBy('quality_score', 'desc')->orderBy('rating', 'desc')->orderBy('created_at', 'desc'),
+            'created_at' => $query->orderBy('created_at', 'desc')->orderBy('rating', 'desc'),
+            'relevance' => $query->orderBy('quality_score', 'desc')->orderBy('rating', 'desc')->orderBy('created_at', 'desc'),
+            default => $query->orderBy('rating', 'desc')->orderBy('created_at', 'desc'),
         };
     }
 

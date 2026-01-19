@@ -34,6 +34,7 @@ class VideoReference extends Model
         'search_metadata',
         'quality_score',
         'completeness_flags',
+        'rating',
     ];
 
     protected function casts(): array
@@ -47,6 +48,7 @@ class VideoReference extends Model
             'duration_sec' => 'integer',
             'hook_id' => 'integer',
             'quality_score' => 'integer',
+            'rating' => 'integer',
             'completeness_flags' => 'array',
             'details_public' => 'array',
             'platform' => PlatformEnum::class,

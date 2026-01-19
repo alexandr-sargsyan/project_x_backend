@@ -40,6 +40,7 @@ return new class extends Migration
             // Ранжирование
             $table->integer('quality_score')->default(0);
             $table->json('completeness_flags')->nullable();
+            $table->integer('rating')->default(1)->comment('Rating from 0 to 10 for sorting');
 
             // Служебные
             $table->timestamps();
@@ -60,6 +61,9 @@ return new class extends Migration
 
         // Создаём GIN индекс для быстрого поиска
         DB::statement('CREATE INDEX video_references_search_vector_idx ON video_references USING GIN (search_vector)');
+        
+        // Создаём индекс для сортировки по рейтингу
+        DB::statement('CREATE INDEX video_references_rating_idx ON video_references (rating DESC)');
     }
 
     /**
