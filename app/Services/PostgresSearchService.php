@@ -17,17 +17,19 @@ class PostgresSearchService
         $builder = VideoReference::query()
             ->with(['categories', 'tags', 'tutorials', 'hook']);
 
+        $hasSearchQuery = !empty($query);
+
         // Применяем full-text search если есть запрос
-        if ($query) {
+        if ($hasSearchQuery) {
             $builder = $this->buildSearchQuery($builder, $query);
         }
 
         // Применяем фильтры
         $builder = $this->buildFilters($builder, $filters);
 
-        // Сортировка - всегда по рейтингу (высокий рейтинг первым)
-        $sortBy = $filters['sort_by'] ?? 'rating';
-        $builder = $this->applySorting($builder, $sortBy);
+        // Сортировка
+        $sortBy = $filters['sort_by'] ?? ($hasSearchQuery ? 'relevance' : 'rating');
+        $builder = $this->applySorting($builder, $sortBy, $hasSearchQuery);
 
         return $builder->paginate($perPage, ['*'], 'page', $page);
     }
@@ -37,13 +39,26 @@ class PostgresSearchService
      */
     public function buildSearchQuery(Builder $query, string $searchTerm): Builder
     {
+        $searchTerm = trim($searchTerm);
+        
+        // Для очень коротких запросов (< 3 символов) используем ILIKE для частичного совпадения
+        if (strlen($searchTerm) < 3) {
+            return $query->where(function($q) use ($searchTerm) {
+                $searchPattern = '%' . $searchTerm . '%';
+                $q->where('title', 'ILIKE', $searchPattern)
+                  ->orWhere('search_profile', 'ILIKE', $searchPattern)
+                  ->orWhere('search_metadata', 'ILIKE', $searchPattern)
+                  ->orWhere('public_summary', 'ILIKE', $searchPattern);
+            });
+        }
+        
         // Преобразуем поисковый запрос в tsquery формат
         $tsQuery = $this->prepareTsQuery($searchTerm);
 
-        return $query->whereRaw(
-            "search_vector @@ to_tsquery('russian', ?)",
-            [$tsQuery]
-        );
+        // Добавляем ранжирование по релевантности через ts_rank_cd
+        return $query
+            ->whereRaw("search_vector @@ to_tsquery('english', ?)", [$tsQuery])
+            ->selectRaw("video_references.*, ts_rank_cd(search_vector, to_tsquery('english', ?)) as relevance_score", [$tsQuery]);
     }
 
     /**
@@ -159,32 +174,50 @@ class PostgresSearchService
 
     /**
      * Применить сортировку
-     * По умолчанию всегда сортировка по рейтингу (высокий рейтинг первым)
+     * По умолчанию сортировка по рейтингу (высокий рейтинг первым)
+     * При поиске - сортировка по релевантности (relevance_score)
      */
-    protected function applySorting(Builder $query, string $sortBy): Builder
+    protected function applySorting(Builder $query, string $sortBy, bool $hasSearchQuery = false): Builder
     {
         return match ($sortBy) {
             'rating' => $query->orderBy('rating', 'desc')->orderBy('created_at', 'desc'),
             'quality_score' => $query->orderBy('quality_score', 'desc')->orderBy('rating', 'desc')->orderBy('created_at', 'desc'),
             'created_at' => $query->orderBy('created_at', 'desc')->orderBy('rating', 'desc'),
-            'relevance' => $query->orderBy('quality_score', 'desc')->orderBy('rating', 'desc')->orderBy('created_at', 'desc'),
-            default => $query->orderBy('rating', 'desc')->orderBy('created_at', 'desc'),
+            'relevance' => $hasSearchQuery 
+                ? $query->orderByRaw('relevance_score DESC NULLS LAST')->orderBy('rating', 'desc')->orderBy('created_at', 'desc')
+                : $query->orderBy('quality_score', 'desc')->orderBy('rating', 'desc')->orderBy('created_at', 'desc'),
+            default => $hasSearchQuery
+                ? $query->orderByRaw('relevance_score DESC NULLS LAST')->orderBy('rating', 'desc')->orderBy('created_at', 'desc')
+                : $query->orderBy('rating', 'desc')->orderBy('created_at', 'desc'),
         };
     }
 
     /**
      * Подготовить поисковый запрос для tsquery
      * Преобразует обычный текст в формат tsquery
+     * Использует гибридную логику: для 1-2 слов AND, для 3+ слов первые 2 AND + остальные OR
      */
     protected function prepareTsQuery(string $searchTerm): string
     {
         // Убираем лишние пробелы
         $searchTerm = trim($searchTerm);
 
+        // Проверка на фразовый поиск в кавычках (точная фраза)
+        if (preg_match('/^"(.+)"$/', $searchTerm, $matches)) {
+            $phrase = trim($matches[1]);
+            $words = preg_split('/\s+/', $phrase);
+            $words = array_map(function ($word) {
+                return preg_replace('/[&|!():]/', '', $word);
+            }, $words);
+            $words = array_filter($words, fn($word) => !empty($word));
+            // Используем <-> для поиска слов рядом друг с другом (фразовый поиск)
+            return implode(' <-> ', $words);
+        }
+
         // Разбиваем на слова
         $words = preg_split('/\s+/', $searchTerm);
 
-        // Экранируем специальные символы и объединяем через &
+        // Экранируем специальные символы
         $words = array_map(function ($word) {
             // Экранируем специальные символы tsquery
             $word = preg_replace('/[&|!():]/', '', $word);
@@ -194,8 +227,28 @@ class PostgresSearchService
         // Фильтруем пустые слова
         $words = array_filter($words, fn($word) => !empty($word));
 
-        // Объединяем через & (AND логика)
-        return implode(' & ', $words);
+        if (empty($words)) {
+            return '';
+        }
+
+        // Гибридная логика для более гибкого поиска
+        if (count($words) === 1) {
+            // Одно слово - просто возвращаем его
+            return $words[0];
+        } elseif (count($words) === 2) {
+            // Два слова - используем AND для точности
+            return implode(' & ', $words);
+        } else {
+            // 3+ слов: первые 2 обязательны (AND), остальные опциональны (OR)
+            $firstTwo = array_slice($words, 0, 2);
+            $rest = array_slice($words, 2);
+            
+            // Формируем запрос: (word1 & word2) & (word3 | word4 | word5)
+            $mandatory = implode(' & ', $firstTwo);
+            $optional = implode(' | ', $rest);
+            
+            return $mandatory . ' & (' . $optional . ')';
+        }
     }
 
     /**

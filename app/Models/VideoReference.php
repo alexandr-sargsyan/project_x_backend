@@ -186,7 +186,7 @@ class VideoReference extends Model
     public function scopeSearch(Builder $query, string $searchTerm): Builder
     {
         return $query->whereRaw(
-            "search_vector @@ to_tsquery('russian', ?)",
+            "search_vector @@ to_tsquery('english', ?)",
             [$searchTerm]
         );
     }

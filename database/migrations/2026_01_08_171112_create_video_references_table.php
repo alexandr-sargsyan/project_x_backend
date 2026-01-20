@@ -51,8 +51,9 @@ return new class extends Migration
             ALTER TABLE video_references 
             ADD COLUMN search_vector tsvector 
             GENERATED ALWAYS AS (
-                to_tsvector(\'russian\', 
+                to_tsvector(\'english\', 
                     coalesce(title, \'\') || \' \' || 
+                    coalesce(public_summary, \'\') || \' \' ||
                     coalesce(search_profile, \'\') || \' \' || 
                     coalesce(search_metadata, \'\')
                 )
