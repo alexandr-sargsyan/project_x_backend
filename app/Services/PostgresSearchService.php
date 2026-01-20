@@ -6,9 +6,15 @@ use App\Models\Category;
 use App\Models\VideoReference;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 class PostgresSearchService
 {
+    /**
+     * Минимальный порог схожести для триграмм (0.0 - 1.0)
+     */
+    private const TRIGRAM_THRESHOLD = 0.3;
+
     /**
      * Поиск видео-референсов с фильтрами
      */
@@ -35,7 +41,7 @@ class PostgresSearchService
     }
 
     /**
-     * Построить запрос с full-text search
+     * Построить запрос с full-text search и нечётким поиском (триграммы)
      */
     public function buildSearchQuery(Builder $query, string $searchTerm): Builder
     {
@@ -43,22 +49,57 @@ class PostgresSearchService
         
         // Для очень коротких запросов (< 3 символов) используем ILIKE для частичного совпадения
         if (strlen($searchTerm) < 3) {
-            return $query->where(function($q) use ($searchTerm) {
-                $searchPattern = '%' . $searchTerm . '%';
-                $q->where('title', 'ILIKE', $searchPattern)
-                  ->orWhere('search_profile', 'ILIKE', $searchPattern)
-                  ->orWhere('search_metadata', 'ILIKE', $searchPattern)
-                  ->orWhere('public_summary', 'ILIKE', $searchPattern);
-            });
+            return $this->buildILikeQuery($query, $searchTerm);
         }
         
         // Преобразуем поисковый запрос в tsquery формат
         $tsQuery = $this->prepareTsQuery($searchTerm);
 
-        // Добавляем ранжирование по релевантности через ts_rank_cd
+        // Гибридный поиск: Full-text + Триграммы
+        // Сначала проверяем, есть ли точные совпадения через full-text search
         return $query
-            ->whereRaw("search_vector @@ to_tsquery('english', ?)", [$tsQuery])
-            ->selectRaw("video_references.*, ts_rank_cd(search_vector, to_tsquery('english', ?)) as relevance_score", [$tsQuery]);
+            ->where(function ($q) use ($tsQuery, $searchTerm) {
+                // Full-text search (точные совпадения с морфологией)
+                $q->whereRaw("search_vector @@ to_tsquery('english', ?)", [$tsQuery]);
+                
+                // ИЛИ нечёткий поиск через триграммы (для опечаток)
+                $q->orWhere(function ($subQ) use ($searchTerm) {
+                    $subQ->whereRaw("title % ?", [$searchTerm])
+                         ->orWhereRaw("search_tags % ?", [$searchTerm])
+                         ->orWhereRaw("search_categories % ?", [$searchTerm]);
+                });
+            })
+            ->selectRaw("
+                video_references.*,
+                CASE 
+                    WHEN search_vector @@ to_tsquery('english', ?) THEN 
+                        ts_rank_cd(search_vector, to_tsquery('english', ?)) * 2
+                    ELSE 0
+                END +
+                GREATEST(
+                    COALESCE(similarity(title, ?), 0),
+                    COALESCE(similarity(search_tags, ?), 0),
+                    COALESCE(similarity(search_categories, ?), 0)
+                ) as relevance_score
+            ", [$tsQuery, $tsQuery, $searchTerm, $searchTerm, $searchTerm]);
+    }
+
+    /**
+     * Построить ILIKE запрос для коротких строк
+     */
+    protected function buildILikeQuery(Builder $query, string $searchTerm): Builder
+    {
+        $searchPattern = '%' . $searchTerm . '%';
+        
+        return $query->where(function($q) use ($searchPattern) {
+            $q->where('title', 'ILIKE', $searchPattern)
+              ->orWhere('search_profile', 'ILIKE', $searchPattern)
+              ->orWhere('search_metadata', 'ILIKE', $searchPattern)
+              ->orWhere('public_summary', 'ILIKE', $searchPattern)
+              ->orWhere('search_tags', 'ILIKE', $searchPattern)
+              ->orWhere('search_categories', 'ILIKE', $searchPattern)
+              ->orWhere('search_hook', 'ILIKE', $searchPattern);
+        });
     }
 
     /**
@@ -231,9 +272,12 @@ class PostgresSearchService
             return '';
         }
 
+        // Добавляем :* для prefix matching (поиск по началу слова)
+        $words = array_map(fn($word) => $word . ':*', $words);
+
         // Гибридная логика для более гибкого поиска
         if (count($words) === 1) {
-            // Одно слово - просто возвращаем его
+            // Одно слово - просто возвращаем его с prefix matching
             return $words[0];
         } elseif (count($words) === 2) {
             // Два слова - используем AND для точности
@@ -270,5 +314,13 @@ class PostgresSearchService
         
         return $childIds;
     }
-}
 
+    /**
+     * Установить порог схожести для триграмм
+     * Вызывать перед поиском если нужно изменить чувствительность
+     */
+    public function setTrigramThreshold(float $threshold = 0.3): void
+    {
+        DB::statement("SET pg_trgm.similarity_threshold = ?", [$threshold]);
+    }
+}

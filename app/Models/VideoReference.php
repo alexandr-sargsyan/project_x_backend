@@ -32,9 +32,24 @@ class VideoReference extends Model
         'has_sound_design',
         'search_profile',
         'search_metadata',
+        // Денормализованные поля для поиска (обновляются триггерами)
+        // 'search_tags',        // Обновляется триггером при изменении тегов
+        // 'search_categories',  // Обновляется триггером при изменении категорий  
+        // 'search_hook',        // Обновляется триггером при изменении hook_id
         'quality_score',
         'completeness_flags',
         'rating',
+    ];
+
+    /**
+     * Поля, которые не должны быть в массовом присвоении
+     * (обновляются триггерами PostgreSQL)
+     */
+    protected $guarded = [
+        'search_tags',
+        'search_categories',
+        'search_hook',
+        'search_vector',
     ];
 
     protected function casts(): array
@@ -58,6 +73,13 @@ class VideoReference extends Model
             'updated_at' => 'datetime',
         ];
     }
+
+    /**
+     * Скрываем служебные поля от API ответов
+     */
+    protected $hidden = [
+        'search_vector',
+    ];
 
     /**
      * Получить категории
@@ -129,6 +151,7 @@ class VideoReference extends Model
 
     /**
      * Склеить теги в строку для full-text search
+     * @deprecated Теперь используется search_tags через триггер
      */
     public function getTagsTextAttribute(): string
     {
@@ -163,6 +186,9 @@ class VideoReference extends Model
         if ($this->tags()->count() > 0) {
             $score += min($this->tags()->count() * 2, 10);
         }
+        if ($this->categories()->count() > 0) {
+            $score += 5;
+        }
 
         return $score;
     }
@@ -177,6 +203,7 @@ class VideoReference extends Model
             'has_public_summary' => !empty($this->public_summary),
             'has_tutorials' => $this->tutorials()->exists(),
             'tags_count' => $this->tags()->count(),
+            'categories_count' => $this->categories()->count(),
         ];
     }
 
@@ -189,6 +216,18 @@ class VideoReference extends Model
             "search_vector @@ to_tsquery('english', ?)",
             [$searchTerm]
         );
+    }
+
+    /**
+     * Scope для нечёткого поиска (триграммы)
+     */
+    public function scopeFuzzySearch(Builder $query, string $searchTerm, float $threshold = 0.3): Builder
+    {
+        return $query->where(function ($q) use ($searchTerm) {
+            $q->whereRaw("title % ?", [$searchTerm])
+              ->orWhereRaw("search_tags % ?", [$searchTerm])
+              ->orWhereRaw("search_categories % ?", [$searchTerm]);
+        });
     }
 
     /**
