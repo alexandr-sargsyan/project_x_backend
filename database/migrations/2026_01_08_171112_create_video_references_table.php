@@ -21,7 +21,8 @@ return new class extends Migration
             $table->string('title');
             $table->string('source_url');
             $table->text('preview_embed')->nullable();
-            $table->text('public_summary')->nullable();
+            $table->text('public_summary')->nullable(); // Plain text для поиска (генерируется из public_summary_html)
+            $table->text('public_summary_html')->nullable(); // HTML для отображения (редактируется через React Quill)
             $table->json('details_public')->nullable();
             $table->integer('duration_sec')->nullable();
 

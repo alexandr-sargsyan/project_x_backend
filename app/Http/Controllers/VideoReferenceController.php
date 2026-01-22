@@ -72,6 +72,28 @@ class VideoReferenceController extends Controller
     {
         $validated = $request->validated();
 
+        // Генерируем plain text из HTML для поиска
+        if (!empty($validated['public_summary_html'])) {
+            $html = $validated['public_summary_html'];
+            
+            // 1. Заменяем блочные элементы на пробелы (чтобы текст из разных блоков не склеивался)
+            // <div>, <p>, <li>, <h1-h6>, <blockquote>, <hr> - заменяем на пробел
+            $html = preg_replace('/<(div|p|li|h[1-6]|blockquote|hr)[^>]*>/i', ' ', $html);
+            $html = preg_replace('/<\/(div|p|li|h[1-6]|blockquote)[^>]*>/i', ' ', $html);
+            
+            // 2. Заменяем <br> и <br/> на пробел
+            $html = preg_replace('/<br\s*\/?>/i', ' ', $html);
+            
+            // 3. Удаляем все остальные теги
+            $text = strip_tags($html);
+            
+            // 4. Конвертируем HTML entities в обычный текст (&nbsp; → пробел, &amp; → &, и т.д.)
+            $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            
+            // 5. Нормализуем пробелы (множественные пробелы/переносы → один пробел)
+            $validated['public_summary'] = preg_replace('/\s+/', ' ', trim($text));
+        }
+
         // Нормализация URL: определяем platform и извлекаем platform_video_id
         if (!empty($validated['source_url'])) {
             $normalized = $this->normalizationService->normalizeUrl($validated['source_url']);
@@ -225,6 +247,31 @@ class VideoReferenceController extends Controller
     {
         $videoReference = VideoReference::findOrFail($id);
         $validated = $request->validated();
+
+        // Генерируем plain text из HTML для поиска
+        if (!empty($validated['public_summary_html'])) {
+            $html = $validated['public_summary_html'];
+            
+            // 1. Заменяем блочные элементы на пробелы (чтобы текст из разных блоков не склеивался)
+            // <div>, <p>, <li>, <h1-h6>, <blockquote>, <hr> - заменяем на пробел
+            $html = preg_replace('/<(div|p|li|h[1-6]|blockquote|hr)[^>]*>/i', ' ', $html);
+            $html = preg_replace('/<\/(div|p|li|h[1-6]|blockquote)[^>]*>/i', ' ', $html);
+            
+            // 2. Заменяем <br> и <br/> на пробел
+            $html = preg_replace('/<br\s*\/?>/i', ' ', $html);
+            
+            // 3. Удаляем все остальные теги
+            $text = strip_tags($html);
+            
+            // 4. Конвертируем HTML entities в обычный текст (&nbsp; → пробел, &amp; → &, и т.д.)
+            $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            
+            // 5. Нормализуем пробелы (множественные пробелы/переносы → один пробел)
+            $validated['public_summary'] = preg_replace('/\s+/', ' ', trim($text));
+        } elseif (isset($validated['public_summary_html']) && empty($validated['public_summary_html'])) {
+            // Если HTML очищен, очищаем и plain text
+            $validated['public_summary'] = null;
+        }
 
         // Если изменился source_url, перенормализовать
         if (isset($validated['source_url']) && 

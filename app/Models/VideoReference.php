@@ -18,6 +18,7 @@ class VideoReference extends Model
         'source_url',
         'preview_embed',
         'public_summary',
+        'public_summary_html',
         'details_public',
         'duration_sec',
         'platform',
