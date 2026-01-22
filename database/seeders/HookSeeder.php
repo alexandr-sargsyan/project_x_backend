@@ -13,12 +13,13 @@ class HookSeeder extends Seeder
     public function run(): void
     {
         $hooks = [
-            'Question',
-            'Action',
             'Visual',
+            'Animation',
+            'Audio',
+            'Text',
+            'Speech',
+            'Music',
             'Emotional',
-            'Mystery',
-            'Sound',
         ];
 
         foreach ($hooks as $hookName) {
