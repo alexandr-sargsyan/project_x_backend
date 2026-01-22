@@ -94,11 +94,9 @@ class PostgresSearchService
         return $query->where(function($q) use ($searchPattern) {
             $q->where('title', 'ILIKE', $searchPattern)
               ->orWhere('search_profile', 'ILIKE', $searchPattern)
-              ->orWhere('search_metadata', 'ILIKE', $searchPattern)
               ->orWhere('public_summary', 'ILIKE', $searchPattern)
               ->orWhere('search_tags', 'ILIKE', $searchPattern)
-              ->orWhere('search_categories', 'ILIKE', $searchPattern)
-              ->orWhere('search_hook', 'ILIKE', $searchPattern);
+              ->orWhere('search_categories', 'ILIKE', $searchPattern);
         });
     }
 

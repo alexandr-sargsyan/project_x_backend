@@ -51,8 +51,7 @@ class StoreVideoReferenceRequest extends FormRequest
             'rating' => ['nullable', 'integer', 'min:0', 'max:10'],
 
             // Search Fields
-            'search_profile' => ['required', 'string'],
-            'search_metadata' => ['nullable', 'string'],
+            'search_profile' => ['nullable', 'string'],
 
             // Tags (массив имен тегов, необязательное поле)
             'tags' => ['nullable', 'array'],

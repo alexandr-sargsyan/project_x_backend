@@ -52,7 +52,6 @@ class UpdateVideoReferenceRequest extends FormRequest
 
             // Search Fields
             'search_profile' => ['sometimes', 'string'],
-            'search_metadata' => ['nullable', 'string'],
 
             // Tags (массив имен тегов, необязательное поле)
             'tags' => ['nullable', 'array'],

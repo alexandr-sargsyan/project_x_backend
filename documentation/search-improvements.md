@@ -1,4 +1,4 @@
-# Улучшения поиска - Обновлено 21 января 2026
+# Улучшения поиска - Обновлено 22 января 2026
 
 ## Обзор архитектуры поиска
 
@@ -13,7 +13,7 @@
 
 ### 1. ✅ Денормализация связанных данных для поиска
 
-**Проблема:** Теги, категории и хуки находились в отдельных таблицах и не индексировались для full-text search.
+**Проблема:** Теги и категории находились в отдельных таблицах и не индексировались для full-text search.
 
 **Решение:** Добавлены денормализованные поля с автоматическим обновлением через триггеры PostgreSQL:
 
@@ -21,31 +21,27 @@
 -- Новые поля в video_references:
 search_tags TEXT DEFAULT ''       -- Денормализованные названия тегов
 search_categories TEXT DEFAULT '' -- Денормализованные названия категорий
-search_hook TEXT DEFAULT ''       -- Денормализованное название хука
 ```
 
 **Триггеры:**
 - `trigger_update_search_tags_insert/delete` - обновляет `search_tags` при изменении связей с тегами
 - `trigger_update_search_categories_insert/delete` - обновляет `search_categories` при изменении категорий
-- `trigger_update_search_hook` - обновляет `search_hook` при изменении `hook_id`
 
 ---
 
 ### 2. ✅ Веса для полей в search_vector
 
-**Проблема:** Все поля имели одинаковый вес, хотя title должен быть важнее search_metadata.
+**Проблема:** Все поля имели одинаковый вес, хотя title должен быть важнее других полей.
 
 **Решение:** Используем веса PostgreSQL (A > B > C > D):
 
 ```sql
 search_vector = 
-    setweight(to_tsvector('english', title), 'A') ||           -- Самый высокий
-    setweight(to_tsvector('english', public_summary), 'B') ||   
-    setweight(to_tsvector('english', search_tags), 'B') ||     
-    setweight(to_tsvector('english', search_categories), 'B') || 
-    setweight(to_tsvector('english', search_hook), 'B') ||     
-    setweight(to_tsvector('english', search_profile), 'C') ||  
-    setweight(to_tsvector('english', search_metadata), 'D')    -- Самый низкий
+    setweight(to_tsvector('english', title), 'A') ||                    -- Самый высокий приоритет
+    setweight(to_tsvector('english', search_tags), 'B') ||              -- Второй приоритет
+    setweight(to_tsvector('english', search_categories), 'B') ||         -- Второй приоритет
+    setweight(to_tsvector('english', search_profile), 'C') ||           -- Третий приоритет (опциональное)
+    setweight(to_tsvector('english', public_summary), 'D')             -- Последний приоритет
 ```
 
 ---
@@ -161,13 +157,7 @@ relevance_score =
 Результат: Найдутся видео с "pizza" благодаря триграммам
 ```
 
-### Пример 4: Поиск по хуку
-```
-Запрос: "Question Hook"
-Результат: Найдутся видео с хуком "Question Hook" (через search_hook)
-```
-
-### Пример 5: Комбинированный поиск
+### Пример 4: Комбинированный поиск
 ```
 Запрос: "fashion commercial slow"
 Результат: Найдутся видео, где есть:
@@ -203,11 +193,12 @@ curl "http://localhost:8000/api/video-references?search=pizza&platform[]=youtube
 
 ### Миграции:
 1. `database/migrations/2026_01_08_171112_create_video_references_table.php`
-   - Добавлены поля: `search_tags`, `search_categories`, `search_hook`
+   - Добавлены поля: `search_tags`, `search_categories`
    - Обновлён `search_vector` с весами (A, B, C, D)
+   - Удалены поля: `search_metadata`, `search_hook`
+   - `search_profile` сделан опциональным (nullable)
    - Добавлены индексы для фильтров
    - Добавлено расширение `pg_trgm` и триграммные индексы
-   - Добавлен триггер для `search_hook`
 
 2. `database/migrations/2026_01_08_171113_create_video_reference_tag_table.php`
    - Добавлены триггеры для обновления `search_tags`
@@ -251,12 +242,10 @@ curl "http://localhost:8000/api/video-references?search=pizza&platform[]=youtube
 │                                          │
 │  1. Full-text search (search_vector)     │
 │     - title (вес A)                      │
-│     - public_summary (вес B)             │
-│     - search_tags (вес B)                │
+│     - search_tags (вес B)               │
 │     - search_categories (вес B)          │
-│     - search_hook (вес B)                │
 │     - search_profile (вес C)             │
-│     - search_metadata (вес D)            │
+│     - public_summary (вес D)             │
 │                                          │
 │  2. Trigram search (% оператор)          │
 │     - title                              │
@@ -271,7 +260,7 @@ curl "http://localhost:8000/api/video-references?search=pizza&platform[]=youtube
 
 ## Важные замечания
 
-1. **Триггеры выполняются автоматически** - не нужно вручную обновлять `search_tags`, `search_categories`, `search_hook`
+1. **Триггеры выполняются автоматически** - не нужно вручную обновлять `search_tags`, `search_categories`
 
 2. **Prefix matching** - поиск `"comm"` найдёт `"commercial"`, `"community"` и т.д.
 

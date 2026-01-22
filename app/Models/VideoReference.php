@@ -31,11 +31,9 @@ class VideoReference extends Model
         'has_typography',
         'has_sound_design',
         'search_profile',
-        'search_metadata',
         // Денормализованные поля для поиска (обновляются триггерами)
         // 'search_tags',        // Обновляется триггером при изменении тегов
-        // 'search_categories',  // Обновляется триггером при изменении категорий  
-        // 'search_hook',        // Обновляется триггером при изменении hook_id
+        // 'search_categories',  // Обновляется триггером при изменении категорий
         'quality_score',
         'completeness_flags',
         'rating',
@@ -48,7 +46,6 @@ class VideoReference extends Model
     protected $guarded = [
         'search_tags',
         'search_categories',
-        'search_hook',
         'search_vector',
     ];
 

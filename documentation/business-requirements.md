@@ -145,11 +145,11 @@
 Это поля, которые используются для full-text search в PostgreSQL через tsvector/tsquery:
 
 **Основные текстовые поля для поиска:**
-- `title` — используется в full-text search (высокий приоритет)
-- `public_summary` — короткое описание, также индексируется для поиска
-- `search_profile` — главный "мозг" поиска, ключевая идея видео, структурированное описание
-- `search_metadata` — дополнительный набор слов, синонимов, вариантов
-- `tags_text` — склеенные теги (вычисляется из массива тегов)
+- `title` — используется в full-text search (приоритет A - самый высокий)
+- `search_tags` — денормализованные теги (приоритет B - второй приоритет)
+- `search_categories` — денормализованные категории (приоритет B - второй приоритет)
+- `search_profile` — ключевая идея видео, структурированное описание (приоритет C - третий приоритет, опциональное)
+- `public_summary` — короткое описание (приоритет D - последний приоритет)
 
 **Как работает поиск:**
 - Все эти поля объединяются в `tsvector` (через computed column)
@@ -174,7 +174,7 @@
 - Базовый каталог из 20-30 тщательно отобранных видео-референсов
 - Основные фильтры (category, platform, pacing, hook_ids[], production_level)
 - Checkbox фильтры (visual effects, 3D, animations, typography, sound design)
-- Full-text search в PostgreSQL (tsvector/tsquery) с поиском по title, public_summary, search_profile, search_metadata (язык: english)
+- Full-text search в PostgreSQL (tsvector/tsquery) с поиском по title, search_tags, search_categories, search_profile, public_summary (язык: english) с весами приоритетов (A, B, C, D)
 - Ранжирование по релевантности, гибкая логика поиска, поддержка коротких запросов
 - Система подписок (базовая)
 - Админ-панель для добавления контента с заполнением всех обязательных полей
