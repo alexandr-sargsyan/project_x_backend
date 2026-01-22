@@ -68,10 +68,12 @@ Route::prefix('admin')->middleware(['auth:api', 'admin'])->group(function () {
     Route::get('/me', [AdminAuthController::class, 'me']);
 
     // CRUD для video-references (только для админов)
-    Route::apiResource('video-references', AdminVideoReferenceController::class);
+    Route::apiResource('video-references', AdminVideoReferenceController::class)
+        ->names('admin.video-references');
 
     // CRUD для categories (только для админов)
-    Route::apiResource('categories', AdminCategoryController::class);
+    Route::apiResource('categories', AdminCategoryController::class)
+        ->names('admin.categories');
 
     // Получение списка hooks (только для админов)
     Route::get('hooks', [AdminHookController::class, 'index']);
