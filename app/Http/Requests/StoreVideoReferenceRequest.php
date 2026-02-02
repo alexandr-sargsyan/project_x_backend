@@ -28,7 +28,7 @@ class StoreVideoReferenceRequest extends FormRequest
         return [
             // Display Fields
             'title' => ['required', 'string', 'max:255'],
-            'source_url' => ['required', 'url'],
+            'source_url' => ['required', 'url', Rule::unique('video_references', 'source_url')],
             'preview_embed' => ['nullable', 'string'],
             'public_summary' => ['nullable', 'string'],
             'public_summary_html' => ['nullable', 'string'],
@@ -58,6 +58,10 @@ class StoreVideoReferenceRequest extends FormRequest
             // Tags (массив имен тегов, необязательное поле)
             'tags' => ['nullable', 'array'],
             'tags.*' => ['required', 'string', 'max:255'],
+
+            // Transition Types (массив имен типов переходов, необязательное поле)
+            'transition_types' => ['nullable', 'array'],
+            'transition_types.*' => ['required', 'string', 'max:255'],
 
             // Tutorials
             'tutorials' => ['nullable', 'array'],
@@ -139,5 +143,15 @@ class StoreVideoReferenceRequest extends FormRequest
                 }
             }
         });
+    }
+
+    /**
+     * Get custom validation messages.
+     */
+    public function messages(): array
+    {
+        return [
+            'source_url.unique' => 'Video with this URL already exists.',
+        ];
     }
 }

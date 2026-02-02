@@ -25,10 +25,13 @@ class UpdateVideoReferenceRequest extends FormRequest
      */
     public function rules(): array
     {
+        // Получаем ID из маршрута (для apiResource это обычно имя модели в единственном числе или id)
+        $videoReferenceId = $this->route('video_reference') ?? $this->route('id');
+        
         return [
             // Display Fields
             'title' => ['sometimes', 'string', 'max:255'],
-            'source_url' => ['sometimes', 'url'],
+            'source_url' => ['sometimes', 'url', Rule::unique('video_references', 'source_url')->ignore($videoReferenceId)],
             'preview_embed' => ['nullable', 'string'],
             'public_summary' => ['nullable', 'string'],
             'public_summary_html' => ['nullable', 'string'],
@@ -58,6 +61,10 @@ class UpdateVideoReferenceRequest extends FormRequest
             // Tags (массив имен тегов, необязательное поле)
             'tags' => ['nullable', 'array'],
             'tags.*' => ['required', 'string', 'max:255'],
+
+            // Transition Types (массив имен типов переходов, необязательное поле)
+            'transition_types' => ['nullable', 'array'],
+            'transition_types.*' => ['required', 'string', 'max:255'],
 
             // Tutorials
             'tutorials' => ['nullable', 'array'],
@@ -139,5 +146,15 @@ class UpdateVideoReferenceRequest extends FormRequest
                 }
             }
         });
+    }
+
+    /**
+     * Get custom validation messages.
+     */
+    public function messages(): array
+    {
+        return [
+            'source_url.unique' => 'Video with this URL already exists.',
+        ];
     }
 }
