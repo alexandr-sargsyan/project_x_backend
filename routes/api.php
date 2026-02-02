@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminAuthController;
 use App\Http\Controllers\Admin\AdminCategoryController;
 use App\Http\Controllers\Admin\AdminHookController;
+use App\Http\Controllers\Admin\AdminTransitionTypeController;
 use App\Http\Controllers\Admin\AdminVideoReferenceController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\LikeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\HookController;
 use App\Http\Controllers\TagController;
+use App\Http\Controllers\TransitionTypeController;
 use App\Http\Controllers\TutorialController;
 use App\Http\Controllers\SharedCollectionController;
 use App\Http\Controllers\VideoCollectionController;
@@ -28,6 +30,7 @@ Route::post('/email-verification/verify-code', [EmailVerificationController::cla
 Route::apiResource('video-references', VideoReferenceController::class)->only(['index', 'show']);
 Route::apiResource('categories', CategoryController::class)->only(['index', 'show']);
 Route::get('tags', [TagController::class, 'index']);
+Route::get('transition-types', [TransitionTypeController::class, 'index']);
 Route::get('hooks', [HookController::class, 'index']);
 Route::get('tutorials', [TutorialController::class, 'index']);
 
@@ -77,4 +80,7 @@ Route::prefix('admin')->middleware(['auth:api', 'admin'])->group(function () {
 
     // Получение списка hooks (только для админов)
     Route::get('hooks', [AdminHookController::class, 'index']);
+
+    // Получение списка transition types (только для админов)
+    Route::get('transition-types', [AdminTransitionTypeController::class, 'index']);
 });

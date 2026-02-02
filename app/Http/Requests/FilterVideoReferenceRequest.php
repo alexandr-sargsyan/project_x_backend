@@ -81,6 +81,8 @@ class FilterVideoReferenceRequest extends FormRequest
             'has_tutorial' => ['nullable', 'boolean'],
             'tag_ids' => ['nullable', 'array'],
             'tag_ids.*' => ['integer', 'exists:tags,id'],
+            'transition_type_ids' => ['nullable', 'array'],
+            'transition_type_ids.*' => ['integer', 'exists:transition_types,id'],
             'sort_by' => ['nullable', 'string'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],

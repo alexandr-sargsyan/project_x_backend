@@ -7,6 +7,7 @@ use App\Http\Requests\FilterVideoReferenceRequest;
 use App\Http\Requests\StoreVideoReferenceRequest;
 use App\Http\Requests\UpdateVideoReferenceRequest;
 use App\Models\Tag;
+use App\Models\TransitionType;
 use App\Models\Tutorial;
 use App\Models\VideoReference;
 use App\Services\PlatformNormalizationService;
@@ -50,6 +51,10 @@ class VideoReferenceController extends Controller
             // Загружаем категории если они не загружены
             if (!$videoReference->relationLoaded('categories')) {
                 $videoReference->load('categories');
+            }
+            // Загружаем transitionTypes если они не загружены
+            if (!$videoReference->relationLoaded('transitionTypes')) {
+                $videoReference->load('transitionTypes');
             }
             return $videoReference;
         });
@@ -140,8 +145,29 @@ class VideoReferenceController extends Controller
             $categoryIds = array_filter($validated['category_ids'], fn($id) => is_numeric($id));
         }
 
-        // Убираем tags и category_ids из validated, так как будем привязывать по ID
-        unset($validated['tags'], $validated['category_ids']);
+        // Обрабатываем transition types: получаем или создаём transition types по именам
+        $transitionTypeIds = [];
+        if (!empty($validated['transition_types']) && is_array($validated['transition_types'])) {
+            foreach ($validated['transition_types'] as $transitionTypeName) {
+                $transitionTypeName = trim($transitionTypeName);
+                if (empty($transitionTypeName)) {
+                    continue;
+                }
+
+                // Ищем существующий transition type (case-insensitive)
+                $transitionType = TransitionType::whereRaw('LOWER(name) = ?', [strtolower($transitionTypeName)])->first();
+
+                if (!$transitionType) {
+                    // Создаём новый transition type
+                    $transitionType = TransitionType::create(['name' => $transitionTypeName]);
+                }
+
+                $transitionTypeIds[] = $transitionType->id;
+            }
+        }
+
+        // Убираем tags, category_ids и transition_types из validated, так как будем привязывать по ID
+        unset($validated['tags'], $validated['category_ids'], $validated['transition_types']);
 
         // Создаём видео-референс
         $videoReference = VideoReference::create($validated);
@@ -154,6 +180,11 @@ class VideoReferenceController extends Controller
         // Привязываем теги по ID
         if (!empty($tagIds)) {
             $videoReference->tags()->sync($tagIds);
+        }
+
+        // Привязываем transition types по ID
+        if (!empty($transitionTypeIds)) {
+            $videoReference->transitionTypes()->sync($transitionTypeIds);
         }
 
         // Обрабатываем tutorials: создаём новые или выбираем существующие
@@ -216,7 +247,7 @@ class VideoReferenceController extends Controller
      */
     public function show(string $id): JsonResponse
     {
-        $videoReference = VideoReference::with(['categories', 'tags', 'tutorials', 'hook'])
+        $videoReference = VideoReference::with(['categories', 'tags', 'transitionTypes', 'tutorials', 'hook'])
             ->findOrFail($id);
         
         // Преобразуем tutorials, добавляя pivot данные на верхний уровень
@@ -322,8 +353,33 @@ class VideoReferenceController extends Controller
             }
         }
 
-        // Убираем tags и category_ids из validated, так как будем привязывать по ID
-        unset($validated['tags'], $validated['category_ids']);
+        // Обрабатываем transition types: получаем или создаём transition types по именам
+        $transitionTypeIds = null;
+        if (array_key_exists('transition_types', $validated)) {
+            $transitionTypeIds = [];
+            if (is_array($validated['transition_types']) && !empty($validated['transition_types'])) {
+                foreach ($validated['transition_types'] as $transitionTypeName) {
+                    $transitionTypeName = trim($transitionTypeName);
+                    if (empty($transitionTypeName)) {
+                        continue;
+                    }
+
+                    // Ищем существующий transition type (case-insensitive)
+                    $transitionType = TransitionType::whereRaw('LOWER(name) = ?', [strtolower($transitionTypeName)])->first();
+
+                    if (!$transitionType) {
+                        // Создаём новый transition type
+                        $transitionType = TransitionType::create(['name' => $transitionTypeName]);
+                    }
+
+                    $transitionTypeIds[] = $transitionType->id;
+                }
+            }
+            // Если transition_types передан (даже пустой массив), синхронизируем
+        }
+
+        // Убираем tags, category_ids и transition_types из validated, так как будем привязывать по ID
+        unset($validated['tags'], $validated['category_ids'], $validated['transition_types']);
 
         // Обновляем видео-референс
         $videoReference->update($validated);
@@ -336,6 +392,11 @@ class VideoReferenceController extends Controller
         // Обновляем теги если переданы
         if ($tagIds !== null) {
             $videoReference->tags()->sync($tagIds);
+        }
+
+        // Обновляем transition types если переданы
+        if ($transitionTypeIds !== null) {
+            $videoReference->transitionTypes()->sync($transitionTypeIds);
         }
 
         // Обрабатываем tutorials: всегда синхронизируем, даже если пустой массив
@@ -378,7 +439,7 @@ class VideoReferenceController extends Controller
         }
 
         // Загружаем связи для ответа
-        $videoReference->load(['categories', 'tags', 'tutorials', 'hook']);
+        $videoReference->load(['categories', 'tags', 'transitionTypes', 'tutorials', 'hook']);
         
         // Преобразуем tutorials, добавляя pivot данные на верхний уровень
         $videoReference->tutorials->transform(function ($tutorial) {

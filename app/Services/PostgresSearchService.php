@@ -21,7 +21,7 @@ class PostgresSearchService
     public function search(?string $query = null, array $filters = [], int $perPage = 20, int $page = 1): LengthAwarePaginator
     {
         $builder = VideoReference::query()
-            ->with(['categories', 'tags', 'tutorials', 'hook']);
+            ->with(['categories', 'tags', 'transitionTypes', 'tutorials', 'hook']);
 
         $hasSearchQuery = !empty($query);
 
@@ -205,6 +205,16 @@ class PostgresSearchService
             if (!empty($tagIds)) {
                 $query->whereHas('tags', function ($q) use ($tagIds) {
                     $q->whereIn('tags.id', $tagIds);
+                });
+            }
+        }
+
+        // Фильтр по transition types (transition_type_ids) - логика OR (хотя бы один из выбранных типов переходов)
+        if (!empty($filters['transition_type_ids']) && is_array($filters['transition_type_ids'])) {
+            $transitionTypeIds = array_filter($filters['transition_type_ids'], fn($id) => is_numeric($id));
+            if (!empty($transitionTypeIds)) {
+                $query->whereHas('transitionTypes', function ($q) use ($transitionTypeIds) {
+                    $q->whereIn('transition_types.id', $transitionTypeIds);
                 });
             }
         }

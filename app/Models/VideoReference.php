@@ -98,6 +98,14 @@ class VideoReference extends Model
     }
 
     /**
+     * Получить типы переходов
+     */
+    public function transitionTypes(): BelongsToMany
+    {
+        return $this->belongsToMany(TransitionType::class, 'video_reference_transition_type');
+    }
+
+    /**
      * Получить хук
      */
     public function hook(): BelongsTo
