@@ -14,8 +14,11 @@ class AdminCategoryController extends Controller
      */
     public function index(): JsonResponse
     {
-        $categories = Category::with(['children' => function($query) {
-                $query->orderBy('order', 'desc')->orderBy('name');
+        $categories = Category::withCount('videoReferences')
+            ->with(['children' => function($query) {
+                $query->withCount('videoReferences')
+                    ->orderBy('order', 'desc')
+                    ->orderBy('name');
             }])
             ->whereNull('parent_id')
             ->orderBy('order', 'desc')
@@ -67,8 +70,11 @@ class AdminCategoryController extends Controller
      */
     public function show(string $id): JsonResponse
     {
-        $category = Category::with(['parent', 'children' => function($query) {
-                $query->orderBy('order', 'desc')->orderBy('name');
+        $category = Category::withCount('videoReferences')
+            ->with(['parent', 'children' => function($query) {
+                $query->withCount('videoReferences')
+                    ->orderBy('order', 'desc')
+                    ->orderBy('name');
             }])
             ->findOrFail($id);
 
