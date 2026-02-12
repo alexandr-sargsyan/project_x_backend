@@ -86,8 +86,12 @@ Route::prefix('admin')->middleware(['auth:api', 'admin'])->group(function () {
     // Получение списка hooks (только для админов)
     Route::get('hooks', [AdminHookController::class, 'index']);
 
-    // Получение списка transition types (только для админов)
-    Route::get('transition-types', [AdminTransitionTypeController::class, 'index']);
+    // CRUD для transition types (только для админов)
+    Route::apiResource('transition-types', AdminTransitionTypeController::class)
+        ->names('admin.transition-types');
+    
+    // Перенос видео из transition type в другой
+    Route::post('transition-types/{id}/transfer-videos', [AdminTransitionTypeController::class, 'transferVideos']);
 
     // CRUD для tutorials (только для админов)
     Route::apiResource('tutorials', AdminTutorialController::class)
