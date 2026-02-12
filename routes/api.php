@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AdminCategoryController;
 use App\Http\Controllers\Admin\AdminHookController;
 use App\Http\Controllers\Admin\AdminTransitionTypeController;
 use App\Http\Controllers\Admin\AdminTutorialController;
+use App\Http\Controllers\Admin\AdminTagController;
 use App\Http\Controllers\Admin\AdminVideoReferenceController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CategoryController;
@@ -94,4 +95,11 @@ Route::prefix('admin')->middleware(['auth:api', 'admin'])->group(function () {
     
     // Присвоить туториал всем видео с указанным Transition Type
     Route::post('tutorials/{id}/assign-by-transition-type', [AdminTutorialController::class, 'assignByTransitionType']);
+
+    // CRUD для tags (только для админов)
+    Route::apiResource('tags', AdminTagController::class)
+        ->names('admin.tags');
+    
+    // Перенос видео из тега в другой
+    Route::post('tags/{id}/transfer-videos', [AdminTagController::class, 'transferVideos']);
 });
